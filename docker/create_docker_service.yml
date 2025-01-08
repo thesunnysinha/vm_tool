@@ -40,7 +40,6 @@
           Type=simple
           WorkingDirectory={{ project_dest_dir }}
           ExecStart=docker compose -f docker-compose.yml up -d
-          ExecStop=docker compose -f docker-compose.yml down
           Restart=always
           RestartSec=10s
 
