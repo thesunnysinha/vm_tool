@@ -1,0 +1,70 @@
+- name: Install Docker and Docker Compose on Ubuntu
+  block:
+    - name: Check if Docker is installed
+      ansible.builtin.command: docker --version
+      register: docker_installed
+      ignore_errors: yes
+
+    - name: Check if Docker Compose is installed
+      ansible.builtin.command: docker compose version
+      register: docker_compose_installed
+      ignore_errors: yes
+
+    # - name: Update apt package index
+    #   ansible.builtin.apt:
+    #     update_cache: yes
+    #   when: docker_installed.rc != 0 or docker_compose_installed.rc != 0
+
+    - name: Install prerequisites
+      ansible.builtin.apt:
+        name:
+          - curl
+          - apt-transport-https
+          - ca-certificates
+          - gnupg
+          - lsb-release
+          - software-properties-common
+        state: present
+
+    - name: Add Docker GPG key
+      ansible.builtin.shell:
+        cmd: |
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --yes --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+      when: docker_installed.rc != 0 or docker_compose_installed.rc != 0
+
+    - name: Add Docker repository
+      ansible.builtin.shell:
+        cmd: |
+          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+      when: docker_installed.rc != 0 or docker_compose_installed.rc != 0
+
+    - name: Set up the Docker stable repository
+      ansible.builtin.command: echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+      when: docker_installed.rc != 0 or docker_compose_installed.rc != 0
+
+    - name: Update apt package index again
+      ansible.builtin.apt:
+        update_cache: yes
+      when: docker_installed.rc != 0 or docker_compose_installed.rc != 0
+
+    - name: Install Docker and Docker Compose
+      ansible.builtin.apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-compose-plugin
+        state: present
+      when: docker_installed.rc != 0 or docker_compose_installed.rc != 0
+
+    - name: Enable and Start Docker service
+      ansible.builtin.systemd:
+        name: docker
+        enabled: yes
+        state: started
+      when: docker_installed.rc != 0
+      
+    - name: Change permissions for Docker socket
+      ansible.builtin.command: sudo chmod 666 /var/run/docker.sock
+      ignore_errors: yes
+  become: yes
