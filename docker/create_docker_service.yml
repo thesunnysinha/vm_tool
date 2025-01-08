@@ -1,9 +1,20 @@
-- name: Create Docker Service
+- name: Clean up Docker Environment and Set up Docker Service
   block:
     - name: Check if Docker Service File Exists
       ansible.builtin.stat:
         path: "{{ service_file_path }}"
       register: service_file_stat
+    
+    - name: Stop project service and ignore errors
+      ansible.builtin.systemd:
+        name: project
+        state: stopped
+      ignore_errors: yes
+
+    # - name: Run Docker System Prune
+    #   ansible.builtin.command:
+    #     cmd: docker system prune -f
+    #   ignore_errors: yes
 
     - name: Remove Existing Docker Service File
       ansible.builtin.file:
@@ -16,24 +27,22 @@
         path: "{{ service_file_path }}"
         state: touch
         mode: '0644'
-        
+
     - name: Insert Docker Service Configuration
       ansible.builtin.blockinfile:
         path: "{{ service_file_path }}"
         block: |
           [Unit]
           Description=Project Docker Container
-          After=network.target
+          After=docker.service
 
           [Service]
-          User=root
-          Group=root
+          Type=simple
           WorkingDirectory={{ project_dest_dir }}
-          ExecStart=docker compose up -d
+          ExecStart=docker compose -f docker-compose.yml up -d
+          ExecStop=docker compose -f docker-compose.yml down
           Restart=always
           RestartSec=10s
-          StandardOutput=journal
-          StandardError=journal
 
           [Install]
           WantedBy=multi-user.target

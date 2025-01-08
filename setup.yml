@@ -56,10 +56,10 @@
     - name: Create Docker Service
       include_tasks: docker/create_docker_service.yml
 
-    - name: Enable Project Docker Service
+    - name: Enable and start project service
       ansible.builtin.systemd:
         name: project
+        state: started
         enabled: yes
-        state: reloaded
       become: yes
       ignore_errors: yes
