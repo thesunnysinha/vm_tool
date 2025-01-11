@@ -1,2 +1,0 @@
-[console_scripts]
-vm_tool = vm_tool.cli:main
