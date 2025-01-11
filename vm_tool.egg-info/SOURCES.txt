@@ -1,0 +1,8 @@
+README.md
+setup.py
+vm_tool/__init__.py
+vm_tool.egg-info/PKG-INFO
+vm_tool.egg-info/SOURCES.txt
+vm_tool.egg-info/dependency_links.txt
+vm_tool.egg-info/requires.txt
+vm_tool.egg-info/top_level.txt
