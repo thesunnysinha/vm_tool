@@ -1,6 +1,6 @@
 Metadata-Version: 2.2
 Name: vm_tool
-Version: 0.4
+Version: 0.5
 Summary: A tool to setup VMs using Ansible.
 License: MIT
 Description-Content-Type: text/markdown
