@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='vm_tool',
-    version='0.2',
+    version='0.4',
     packages=find_packages(),
     description='A tool to setup VMs using Ansible.',
     long_description='''
@@ -24,6 +24,7 @@ setup(
 
     runner.run_setup()
     ''',
+    long_description_content_type='text/markdown',
     install_requires=[
         'ansible',
         'ansible-runner',

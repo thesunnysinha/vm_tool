@@ -1,3 +1,4 @@
+LICENSE
 README.md
 setup.py
 vm_tool/__init__.py
