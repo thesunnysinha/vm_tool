@@ -1,1 +1,1 @@
-from .src.setup_runner import SetupRunner
+from vm_tool.src.setup_runner import SetupRunner
