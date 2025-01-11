@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='vm_tool',
-    version='1.0',
+    version='1.0.0',  # This will be updated by bump2version
     packages=find_packages(),
     description='A tool to setup VMs using Ansible.',
     long_description='''

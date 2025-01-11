@@ -1,0 +1,35 @@
+name: Publish Python Package
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install bump2version twine
+
+    - name: Bump version
+      run: bump2version patch
+
+    - name: Make push_to_pypi.sh executable
+      run: chmod +x push_to_pypi.sh
+
+    - name: Run push_to_pypi.sh
+      env:
+        TWINE_PASSWORD: ${{ secrets.PYPI_API_KEY }}
+      run: ./push_to_pypi.sh

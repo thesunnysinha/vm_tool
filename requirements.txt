@@ -1,5 +1,7 @@
 ansible==11.1.0
 ansible-core==2.18.1
+ansible-runner==2.4.0
+bump2version==1.0.1
 certifi==2024.12.14
 cffi==1.17.1
 charset-normalizer==3.4.1
@@ -11,15 +13,20 @@ jaraco.context==6.0.1
 jaraco.functools==4.1.0
 Jinja2==3.1.5
 keyring==25.6.0
+lockfile==0.12.2
 markdown-it-py==3.0.0
 MarkupSafe==3.0.2
 mdurl==0.1.2
 more-itertools==10.5.0
 nh3==0.2.20
 packaging==24.2
+pexpect==4.9.0
 pkginfo==1.12.0
+plumbum==1.9.0
+ptyprocess==0.7.0
 pycparser==2.22
 Pygments==2.19.1
+python-daemon==3.1.2
 PyYAML==6.0.2
 readme_renderer==44.0
 requests==2.32.3
@@ -27,5 +34,7 @@ requests-toolbelt==1.0.0
 resolvelib==1.0.1
 rfc3986==2.0.0
 rich==13.9.4
+setuptools==75.8.0
 twine==6.0.1
 urllib3==2.3.0
+vm_tool @ file:///Users/sunnysinha/Desktop/Projects/vm_setup
