@@ -16,7 +16,7 @@ export ANSIBLE_SSH_PASS=""
 export ANSIBLE_BECOME_PASS=""
 export GITHUB_USERNAME=""
 export GITHUB_TOKEN=""
-export PROJECT_NAME=""
+export GITHUB_PROJECT_URL=""
 clear
 ```
 

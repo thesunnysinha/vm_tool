@@ -6,7 +6,7 @@
     ansible_ssh_user: "{{ lookup('env', 'ANSIBLE_SSH_USER') }}"
     ansible_ssh_pass: "{{ lookup('env', 'ANSIBLE_SSH_PASS') }}"
     ansible_become_pass: "{{ lookup('env', 'ANSIBLE_BECOME_PASS') }}"
-    project_name: "{{ lookup('env', 'PROJECT_NAME') }}"
+    github_project_url: "{{ lookup('env', 'GITHUB_PROJECT_URL') }}"
     github_username: "{{ lookup('env', 'GITHUB_USERNAME') }}"
     github_token: "{{ lookup('env', 'GITHUB_TOKEN') }}"
     static_playbook_dir: "{{playbook_dir}}"
@@ -23,8 +23,7 @@
 
     - name: Set project_repo_url variable
       set_fact:
-        project_repo_url: "https://github.com/thesunnysinha/jingo.git"
-      when: project_name == "jingo"
+        project_repo_url: "{{ github_project_url }}"
     
     - name: Configure Git with GitHub token
       shell: |
