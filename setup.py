@@ -4,7 +4,8 @@ setup(
     name='vm_tool',
     version='0.2',
     packages=find_packages(),
-    description='''
+    description='A tool to setup VMs using Ansible.',
+    long_description='''
     This is a tool to setup VMs using Ansible.
 
     Example usage:
