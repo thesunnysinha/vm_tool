@@ -31,6 +31,12 @@ jobs:
     - name: Bump version
       run: bump2version patch
 
+    - name: Push changes
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        git push --follow-tags
+
     - name: Make push_to_pypi.sh executable
       run: chmod +x push_to_pypi.sh
 
