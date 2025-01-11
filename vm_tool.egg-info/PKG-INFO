@@ -1,6 +1,10 @@
 Metadata-Version: 2.2
 Name: vm_tool
-Version: 0.1
+Version: 0.2
+Summary: This is a tool to setup VMs using Ansible.
+License: MIT
 Requires-Dist: ansible
 Requires-Dist: ansible-runner
+Dynamic: license
 Dynamic: requires-dist
+Dynamic: summary
