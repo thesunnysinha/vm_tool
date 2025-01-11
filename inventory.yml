@@ -1,4 +1,0 @@
-all:
-  hosts:
-    local:
-      ansible_host: "{{ lookup('env', 'ANSIBLE_SSH_HOST') }}"
