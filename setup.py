@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='vm_tool',
-    version='0.4',
+    version='0.5',
     packages=find_packages(),
     description='A tool to setup VMs using Ansible.',
     long_description='''
@@ -29,5 +29,10 @@ setup(
         'ansible',
         'ansible-runner',
     ],
+    entry_points={
+        'console_scripts': [
+            'vm_tool=vm_tool.cli:main',
+        ],
+    },
     license='MIT',
 )
