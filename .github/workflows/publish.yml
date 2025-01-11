@@ -23,6 +23,11 @@ jobs:
         python -m pip install --upgrade pip
         pip install bump2version twine
 
+    - name: Configure Git
+      run: |
+        git config --global user.email "thesunnysinha@gmail.com"
+        git config --global user.name "Sunny Kumar Sinha"
+
     - name: Bump version
       run: bump2version patch
 
