@@ -3,19 +3,12 @@
   gather_facts: yes
 
   vars:
-    ansible_ssh_user: "{{ lookup('env', 'ANSIBLE_SSH_USER') }}"
-    ansible_ssh_pass: "{{ lookup('env', 'ANSIBLE_SSH_PASS') }}"
-    ansible_become_pass: "{{ lookup('env', 'ANSIBLE_BECOME_PASS') }}"
     github_project_url: "{{ lookup('env', 'GITHUB_PROJECT_URL') }}"
     github_username: "{{ lookup('env', 'GITHUB_USERNAME') }}"
     github_token: "{{ lookup('env', 'GITHUB_TOKEN') }}"
     static_playbook_dir: "{{playbook_dir}}"
 
   tasks:
-    - name: Validate Project name
-      fail:
-        msg: "Invalid project name. Please enter supported project name."
-      when: project_name not in ['jingo']
 
     - name: Set project_dest_dir variable
       set_fact:

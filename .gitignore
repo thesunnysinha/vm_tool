@@ -1,5 +1,33 @@
+# Project-specific files
 project/
 
+# Virtual environments
 venv/
+.env/
 
+# Distribution / packaging
 dist/
+build/
+*.egg-info/
+
+# Python-specific files
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Logs
+*.log
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# IDE-specific files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
