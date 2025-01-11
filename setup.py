@@ -27,4 +27,5 @@ setup(
         'ansible',
         'ansible-runner',
     ],
+    license='MIT',
 )
