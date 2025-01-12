@@ -1,25 +1,16 @@
 from setuptools import setup, find_packages
+import os
+
+# Read the contents of README.md
+with open(os.path.join(os.path.dirname(__file__), 'Readme.md'), encoding='utf-8') as f:
+    long_description = f.read()
 
 setup(
     name='vm_tool',
-    version='1.0.0',  # This will be updated by bump2version
+    version='1.0.1',  # This will be updated by bump2version
     packages=find_packages(),
-    description='A tool to setup VMs using Ansible.',
-    long_description='''
-    This is a tool to setup VMs using Ansible.
-
-    Example usage:
-
-    from vm_tool.runner import SetupRunner
-
-    runner = SetupRunner(
-        github_username='your_github_username', # e.g. username
-        github_token='your_github_token', # e.g. token
-        github_project_url='your_github_project_url' # e.g. https://github.com/username/repo
-    )
-
-    runner.run_setup()
-    ''',
+    description='A Comprehensive Tool for Setting Up Virtual Machines Using Ansible.',
+    long_description=long_description,
     long_description_content_type='text/markdown',
     install_requires=[
         'ansible',

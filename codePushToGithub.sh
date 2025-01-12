@@ -11,6 +11,9 @@ read -p "Enter the branch name: " branch_name
 
 # Check if the branch name is "main"
 if [ "$branch_name" = "main" ]; then
+
+    bump2version patch
+
     # Add all changes
     git add .
 

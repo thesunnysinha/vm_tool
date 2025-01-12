@@ -28,15 +28,6 @@ jobs:
         git config --global user.email "thesunnysinha@gmail.com"
         git config --global user.name "Sunny Kumar Sinha"
 
-    - name: Bump version
-      run: bump2version patch
-
-    - name: Push changes
-      env:
-        GITHUB_TOKEN: ${{ secrets.ANSIBLE_TOKEN }}
-      run: |
-        git push --follow-tags
-
     - name: Make push_to_pypi.sh executable
       run: chmod +x push_to_pypi.sh
 
