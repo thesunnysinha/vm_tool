@@ -6,10 +6,9 @@
     github_project_url: "{{ lookup('env', 'GITHUB_PROJECT_URL') }}"
     github_username: "{{ lookup('env', 'GITHUB_USERNAME') }}"
     github_token: "{{ lookup('env', 'GITHUB_TOKEN') }}"
-    static_playbook_dir: "{{playbook_dir}}"
+    static_playbook_dir: "{{ playbook_dir }}"
 
   tasks:
-
     - name: Set project_dest_dir variable
       set_fact:
         project_dest_dir: "{{ static_playbook_dir }}/project"
@@ -55,3 +54,24 @@
         enabled: yes
       become: yes
       ignore_errors: yes
+
+    # Cleanup section
+    - name: Remove GitHub credentials from git-credentials
+      file:
+        path: ~/.git-credentials
+        state: absent
+      become: yes
+
+    - name: Clear Git credential helper configuration
+      shell: git config --global --unset credential.helper
+      become: yes
+
+    - name: Unset environment variables
+      shell: |
+        unset GITHUB_PROJECT_URL
+        unset GITHUB_USERNAME
+        unset GITHUB_TOKEN
+      environment:
+        GITHUB_PROJECT_URL: "{{ github_project_url }}"
+        GITHUB_USERNAME: "{{ github_username }}"
+        GITHUB_TOKEN: "{{ github_token }}"

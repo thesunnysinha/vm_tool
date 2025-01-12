@@ -1,5 +1,5 @@
 # **VM Setup Tool**  
-### **A Comprehensive Solution for Streamlining Virtual Machine Configuration with Ansible**
+### **A Comprehensive Solution for Streamlining Virtual Machine Configuration**
 
 ## **Overview**  
 The **VM Setup Tool** is an efficient, user-friendly solution designed to simplify the process of setting up and managing virtual machines (VMs) using Ansible. Ideal for automating VM deployment and configuration, this tool ensures consistency and enhances operational efficiency across your infrastructure.
