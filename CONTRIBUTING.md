@@ -1,10 +1,57 @@
-### Welcome to initial setup of the application
+## Initial Setup of the Application
 
-1. Connect to deployment machine using VSCode.
+1. **Connect to the deployment machine using VSCode.**
+   - Open VSCode.
+   - Use the SSH extension to connect to your deployment machine.
 
-2. Run the following command to install the package and its dependencies:
-```bash
-pip install .
-```
+2. **Install the package and its dependencies:**
+   ```bash
+   pip install .
+   ```
 
-3. Raise PR with issue resolved with proper description
+3. **Raise a Pull Request (PR):**
+   - Ensure the issue you are addressing is resolved.
+   - Write a clear and concise description of the changes made in the PR.
+
+---
+
+## Contributing Guidelines
+
+We welcome contributions to improve this tool! Here are the steps to contribute:
+
+1. **Fork the repository:**
+   - Navigate to the repository and click the "Fork" button.
+
+2. **Clone your fork:**
+   ```bash
+   git clone https://github.com/thesunnysinha/vm-tool.git
+   cd vm-tool
+   ```
+
+3. **Create a new branch:**
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+
+4. **Make changes:**
+   - Ensure your code follows best practices.
+   - Test your changes locally before committing.
+
+5. **Commit and push your changes:**
+   ```bash
+   git add .
+   git commit -m "Add description of changes"
+   git push origin feature/your-feature-name
+   ```
+
+6. **Submit a PR:**
+   - Go to the original repository and click "New Pull Request."
+   - Provide a detailed description of your changes, including the issue it resolves.
+
+7. **Review process:**
+   - Wait for maintainers to review your PR.
+   - Address any feedback promptly.
+
+---
+
+Thank you for contributing to the VM Setup Tool!
