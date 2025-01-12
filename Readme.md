@@ -55,7 +55,7 @@ The **VM Setup Tool** also includes a dedicated **SSH client** feature to simpli
 ### **Example Usage**  
 
 ```python
-from vm_tool.ssh_setup import SSHSetup
+from vm_tool.ssh import SSHSetup
 
 ssh_setup = SSHSetup(
     hostname='your_vm_hostname',  # e.g., vm.example.com
