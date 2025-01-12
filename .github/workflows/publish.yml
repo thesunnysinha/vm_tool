@@ -21,7 +21,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install bump2version twine setuptools
+        pip install twine setuptools
 
     - name: Configure Git
       run: |
