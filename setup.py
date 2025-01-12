@@ -7,7 +7,7 @@ with open(os.path.join(os.path.dirname(__file__), 'Readme.md'), encoding='utf-8'
 
 setup(
     name='vm_tool',
-    version='1.0.2',  # This will be updated by bump2version
+    version='1.0.4',  # This will be updated by bump2version
     packages=find_packages(),
     description='A Comprehensive Tool for Setting Up Virtual Machines Using Ansible.',
     long_description=long_description,
@@ -15,6 +15,7 @@ setup(
     install_requires=[
         'ansible',
         'ansible-runner',
+        'paramiko'
     ],
     entry_points={
         'console_scripts': [

@@ -37,4 +37,3 @@ rich==13.9.4
 setuptools==75.8.0
 twine==6.0.1
 urllib3==2.3.0
-vm_tool @ file:///Users/sunnysinha/Desktop/Projects/vm_setup
