@@ -49,6 +49,36 @@ By automating these tasks, the tool minimizes errors and saves time, allowing yo
 
 ---
 
+## **Cloud Setup**  
+The **VM Setup Tool** also supports cloud setup for VMs. Use the following example to configure and run the cloud setup:
+
+```python
+from vm_tool.runner import SetupRunner
+
+runner = SetupRunner(
+    github_username='your_github_username',  # e.g., username
+    github_token='your_github_token',        # e.g., token
+    github_project_url='your_github_project_url'  # e.g., https://github.com/username/repo
+)
+
+runner.run_cloud_setup(
+    ssh_username='your_ssh_username',        # e.g., ssh_user
+    ssh_password='your_ssh_password',        # e.g., ssh_password
+    ssh_hostname='your_ssh_hostname'         # e.g., ssh.example.com
+)
+```
+
+### **What Happens During Cloud Setup**  
+When you run the cloud setup, the tool will:  
+1. Connect to the specified cloud VM using SSH.  
+2. Clone the specified GitHub repository to the VM.  
+3. Install **Docker** if it’s not already available on the VM.  
+4. Install **Docker Compose** for managing multi-container applications.  
+5. Create, enable, and start the Docker service on the VM.  
+6. Ensure the Docker container remains active, providing a robust environment for your applications.  
+
+---
+
 ## **SSH Client Feature**  
 The **VM Setup Tool** also includes a dedicated **SSH client** feature to simplify the configuration of SSH access for VMs, including automated SSH key generation and management.
 
