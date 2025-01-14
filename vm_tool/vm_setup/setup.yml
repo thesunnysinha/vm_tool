@@ -3,24 +3,17 @@
   gather_facts: yes
 
   vars:
-    github_project_url: "{{ lookup('env', 'GITHUB_PROJECT_URL') }}"
-    github_username: "{{ lookup('env', 'GITHUB_USERNAME') }}"
-    github_token: "{{ lookup('env', 'GITHUB_TOKEN') }}"
     static_playbook_dir: "{{ playbook_dir }}"
 
   tasks:
     - name: Set project_dest_dir variable
       set_fact:
         project_dest_dir: "{{ static_playbook_dir }}/project"
-
-    - name: Set project_repo_url variable
-      set_fact:
-        project_repo_url: "{{ github_project_url }}"
     
     - name: Configure Git with GitHub token
       shell: |
         git config --global credential.helper store
-        echo "https://{{ github_username }}:{{ github_token }}@github.com" > ~/.git-credentials
+        echo "https://{{ GITHUB_USERNAME }}:{{ GITHUB_TOKEN }}@github.com" > ~/.git-credentials
       become: yes
     
     - name: Remove existing Project repository if present
@@ -32,7 +25,7 @@
 
     - name: Clone the Project repository
       git:
-        repo: "{{ project_repo_url }}"
+        repo: "{{ GITHUB_PROJECT_URL }}"
         dest: "{{ project_dest_dir }}"
         version: main
       become: yes
@@ -72,6 +65,6 @@
         unset GITHUB_USERNAME
         unset GITHUB_TOKEN
       environment:
-        GITHUB_PROJECT_URL: "{{ github_project_url }}"
-        GITHUB_USERNAME: "{{ github_username }}"
-        GITHUB_TOKEN: "{{ github_token }}"
+        GITHUB_PROJECT_URL: "{{ GITHUB_PROJECT_URL }}"
+        GITHUB_USERNAME: "{{ GITHUB_USERNAME }}"
+        GITHUB_TOKEN: "{{ GITHUB_TOKEN }}"
