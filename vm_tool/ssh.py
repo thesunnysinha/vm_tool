@@ -32,7 +32,7 @@ class SSHSetup:
         self.client = paramiko.SSHClient()
         self.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
-    def generate_ssh_key(self, email):
+    def __generate_ssh_key(self, email):
         """
         Generates an SSH key pair.
 
@@ -42,7 +42,7 @@ class SSHSetup:
         print(f"Generating SSH key for email: {email}")
         os.system(f'ssh-keygen -t rsa -b 4096 -C "{email}"')
 
-    def read_or_generate_public_key(self, email):
+    def __read_or_generate_public_key(self, email):
         """
         Reads the public SSH key or generates a new one if it doesn't exist.
 
@@ -54,12 +54,12 @@ class SSHSetup:
         """
         public_key_path = f'{self.private_key_path}.pub'
         if not os.path.exists(public_key_path):
-            self.generate_ssh_key(email)
+            self.__generate_ssh_key(email)
         with open(public_key_path, 'r') as file:
             print(f"Reading public key from {public_key_path}")
             return file.read()
 
-    def configure_vm(self, vm_ip, vm_password, public_key):
+    def __configure_vm(self, vm_ip, vm_password, public_key):
         """
         Configures the VM by adding the public SSH key to the authorized keys.
 
@@ -73,7 +73,7 @@ class SSHSetup:
         self.client.exec_command(f'echo "{public_key}" >> ~/.ssh/authorized_keys')
         self.client.close()
 
-    def update_ssh_config(self):
+    def __update_ssh_config(self):
         """
         Updates the local SSH config file with the VM details.
         """
@@ -89,14 +89,14 @@ Host {self.hostname}
         with open(f'{os.path.expanduser("~")}/.ssh/config', 'a') as file:
             file.write(config)
 
-    def establish_connection(self):
+    def __establish_connection(self):
         """
         Establishes an SSH connection to the VM.
         """
         print(f"Establishing SSH connection to {self.hostname}.")
         self.client.connect(self.hostname, username=self.username, key_filename=self.private_key_path)
 
-    def close_connection(self):
+    def __close_connection(self):
         """
         Closes the SSH connection.
         """
@@ -109,9 +109,9 @@ Host {self.hostname}
         Sets up the SSH configuration and keys for the VM.
         """
         print("Starting SSH setup.")
-        public_key = self.read_or_generate_public_key(self.email)
-        self.configure_vm(self.hostname, self.password, public_key)
-        self.update_ssh_config()
-        self.establish_connection()
-        self.close_connection()
+        public_key = self.__read_or_generate_public_key(self.email)
+        self.__configure_vm(self.hostname, self.password, public_key)
+        self.__update_ssh_config()
+        self.__establish_connection()
+        self.__close_connection()
         print("SSH setup completed.")
