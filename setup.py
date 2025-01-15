@@ -13,7 +13,7 @@ setup(
     name='vm_tool',
     version='1.0.15',  # This will be updated by bump2version
     packages=find_packages(),
-    description='A Comprehensive Tool for Setting Up Virtual Machines Using Ansible.',
+    description='A Comprehensive Tool for Setting Up Virtual Machines.',
     long_description=long_description,
     long_description_content_type='text/markdown',
     install_requires=[
@@ -28,4 +28,10 @@ setup(
     },
     license='MIT',
     include_package_data=True,
+    url='https://github.com/thesunnysinha/vm_tool',  # Replace with your GitHub repo URL
+    project_urls={
+        'Documentation': 'https://github.com/thesunnysinha/vm_tool/README.md',  # Replace if applicable
+        'Source': 'https://github.com/thesunnysinha/vm_tool',
+        'Tracker': 'https://github.com/thesunnysinha/vm_tool/issues',
+    },
 )
