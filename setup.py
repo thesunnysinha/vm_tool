@@ -11,7 +11,7 @@ else:
 
 setup(
     name='vm_tool',
-    version='1.0.18',  # This will be updated by bump2version
+    version='1.0.19',  # This will be updated by bump2version
     packages=find_packages(),
     description='A Comprehensive Tool for Setting Up Virtual Machines.',
     long_description=long_description,
@@ -20,7 +20,8 @@ setup(
         'ansible',
         'ansible-runner',
         'paramiko',
-        'pydantic'
+        'pydantic',
+        'pyyaml'
     ],
     extras_require={
         'dev': [
@@ -62,4 +63,6 @@ setup(
         'Source': 'https://github.com/thesunnysinha/vm_tool',
         'Tracker': 'https://github.com/thesunnysinha/vm_tool/issues',
     },
+    author='Sunny Sinha',
+    author_email='thesunnysinha@gmail.com',
 )
