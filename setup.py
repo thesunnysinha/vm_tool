@@ -11,7 +11,7 @@ else:
 
 setup(
     name='vm_tool',
-    version='1.0.17',  # This will be updated by bump2version
+    version='1.0.18',  # This will be updated by bump2version
     packages=find_packages(),
     description='A Comprehensive Tool for Setting Up Virtual Machines.',
     long_description=long_description,
@@ -22,11 +22,38 @@ setup(
         'paramiko',
         'pydantic'
     ],
+    extras_require={
+        'dev': [
+            'pytest',
+            'flake8',
+            'bump2version'
+        ]
+    },
     entry_points={
         'console_scripts': [
             'vm_tool=vm_tool.cli:main',
         ],
     },
+    classifiers=[
+        'Development Status :: 5 - Production/Stable',
+        'Intended Audience :: Developers',
+        'Intended Audience :: System Administrators',
+        'License :: OSI Approved :: MIT License',
+        'Programming Language :: Python',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11',
+        'Programming Language :: Python :: 3.12',
+        'Programming Language :: Python :: 3.13',
+        'Topic :: Software Development :: Build Tools',
+        'Topic :: System :: Systems Administration',
+    ],
+    python_requires='>=3.6',
+    keywords='virtual machine setup ansible automation',
     license='MIT',
     include_package_data=True,
     url='https://github.com/thesunnysinha/vm_tool',
