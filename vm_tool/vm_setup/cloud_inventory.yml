@@ -1,8 +1,0 @@
-all:
-  hosts:
-    cloud_host:
-      ansible_host: "{{ SSH_HOSTNAME }}"
-      ansible_user: "{{ SSH_USERNAME }}"
-      ansible_ssh_pass: "{{ SSH_PASSWORD }}"
-  vars:
-    ansible_python_interpreter: /usr/bin/python3

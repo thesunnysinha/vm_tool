@@ -7,7 +7,7 @@ The **VM Setup Tool** is an efficient, user-friendly solution designed to simpli
 ---
 
 ## **Pre-requisites**  
-This tool supports projects utilizing **Docker Compose**. Ensure that a `docker-compose.yml` file is present at the root of your project directory before proceeding.
+This tool supports projects utilizing **Docker Compose**.
 
 ---
 
@@ -26,14 +26,16 @@ pip install vm-tool
 Use the following example to configure and run the VM setup:  
 
 ```python
-from vm_tool.runner import SetupRunner
+from vm_tool.runner import SetupRunner, SetupRunnerConfig
 
-runner = SetupRunner(
+config = SetupRunnerConfig(
     github_username='your_github_username',  # e.g., username
     github_token='your_github_token',        # e.g., token
     github_project_url='your_github_project_url',  # e.g., https://github.com/username/repo
-    docker_compose_file_path='path_to_your_docker_compose_file'  # Optional, defaults to 'docker-compose.yml' e.g. backend/docker-compose.prod.yml
+    docker_compose_file_path='path_to_your_docker_compose_file'  # Optional, defaults to 'docker-compose.yml'
 )
+
+runner = SetupRunner(config)
 
 runner.run_setup()
 ```
@@ -54,20 +56,32 @@ By automating these tasks, the tool minimizes errors and saves time, allowing yo
 The **VM Setup Tool** also supports cloud setup for VMs. Use the following example to configure and run the cloud setup:
 
 ```python
-from vm_tool.runner import SetupRunner
+from vm_tool.runner import SetupRunner, SetupRunnerConfig, SSHConfig
 
-runner = SetupRunner(
+config = SetupRunnerConfig(
     github_username='your_github_username',  # e.g., username
     github_token='your_github_token',        # e.g., token
     github_project_url='your_github_project_url',  # e.g., https://github.com/username/repo
-    docker_compose_file_path='path_to_your_docker_compose_file'  # Optional, defaults to 'docker-compose.yml' e.g. backend/docker-compose.prod.yml
+    docker_compose_file_path='path_to_your_docker_compose_file'  # Optional, defaults to 'docker-compose.yml'
 )
 
-runner.run_cloud_setup(
-    ssh_username='your_ssh_username',        # e.g., ssh_user
-    ssh_password='your_ssh_password',        # e.g., ssh_password
-    ssh_hostname='your_ssh_hostname'         # e.g., ssh.example.com
-)
+runner = SetupRunner(config)
+
+ssh_configs = [
+    SSHConfig(
+        ssh_username='your_ssh_username_1',        # e.g., ssh_user_1
+        ssh_password='your_ssh_password_1',        # e.g., ssh_password_1
+        ssh_hostname='your_ssh_hostname_1'         # e.g., ssh1.example.com
+    ),
+    SSHConfig(
+        ssh_username='your_ssh_username_2',        # e.g., ssh_user_2
+        ssh_password='your_ssh_password_2',        # e.g., ssh_password_2
+        ssh_hostname='your_ssh_hostname_2'         # e.g., ssh2.example.com
+    )
+    # Add more SSHConfig instances as needed
+]
+
+runner.run_cloud_setup(ssh_configs)
 ```
 
 ### **What Happens During Cloud Setup**  

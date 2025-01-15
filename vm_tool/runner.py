@@ -1,7 +1,9 @@
 import sys
 import ansible_runner
 import os
+import yaml
 from pydantic import BaseModel, HttpUrl, validator
+from typing import List
 
 class SetupRunnerConfig(BaseModel):
     github_username: str
@@ -12,6 +14,11 @@ class SetupRunnerConfig(BaseModel):
     @validator('docker_compose_file_path', pre=True, always=True)
     def set_default_docker_compose_file_path(cls, v):
         return v or 'docker-compose.yml'
+
+class SSHConfig(BaseModel):
+    ssh_username: str
+    ssh_password: str
+    ssh_hostname: str
 
 class SetupRunner:
     def __init__(self, config: SetupRunnerConfig):
@@ -63,12 +70,40 @@ class SetupRunner:
 
         self._run_ansible_playbook(extravars, 'inventory.yml')
 
-    def run_cloud_setup(self, ssh_username: str, ssh_password: str, ssh_hostname: str):
+    def run_cloud_setup(self, ssh_configs: List[SSHConfig]):
+        # Define the path for the dynamic inventory file
+        inventory_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'vm_setup', 'dynamic_inventory.yml')
+
+        # Check if the dynamic inventory file already exists
+        if os.path.exists(inventory_file_path):
+            # Read the existing inventory file
+            with open(inventory_file_path, 'r') as inventory_file:
+                inventory_content = yaml.safe_load(inventory_file)
+        else:
+            # Create dynamic inventory content
+            inventory_content = {
+                'all': {
+                    'hosts': {},
+                    'vars': {
+                        'ansible_python_interpreter': '/usr/bin/python3'
+                    }
+                }
+            }
+
+            for i, ssh_config in enumerate(ssh_configs):
+                host_key = f'cloud_host_{i}'
+                inventory_content['all']['hosts'][host_key] = {
+                    'ansible_host': ssh_config.ssh_hostname,
+                    'ansible_user': ssh_config.ssh_username,
+                    'ansible_ssh_pass': ssh_config.ssh_password
+                }
+
+            # Write dynamic inventory to a file
+            with open(inventory_file_path, 'w') as inventory_file:
+                yaml.dump(inventory_content, inventory_file)
+
         # Construct extravars dictionary
         extravars = {
-            'SSH_USERNAME': ssh_username,
-            'SSH_PASSWORD': ssh_password,
-            'SSH_HOSTNAME': ssh_hostname,
             'GITHUB_USERNAME': self.github_username,
             'GITHUB_TOKEN': self.github_token,
             'GITHUB_PROJECT_URL': self.github_project_url,
@@ -78,4 +113,4 @@ class SetupRunner:
         if self.docker_compose_file_path:
             extravars["DOCKER_COMPOSE_FILE_PATH"] = self.docker_compose_file_path
 
-        self._run_ansible_playbook(extravars, 'cloud_inventory.yml')
+        self._run_ansible_playbook(extravars, 'dynamic_inventory.yml')
