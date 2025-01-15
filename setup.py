@@ -11,7 +11,7 @@ else:
 
 setup(
     name='vm_tool',
-    version='1.0.16',  # This will be updated by bump2version
+    version='1.0.17',  # This will be updated by bump2version
     packages=find_packages(),
     description='A Comprehensive Tool for Setting Up Virtual Machines.',
     long_description=long_description,
@@ -19,7 +19,8 @@ setup(
     install_requires=[
         'ansible',
         'ansible-runner',
-        'paramiko'
+        'paramiko',
+        'pydantic'
     ],
     entry_points={
         'console_scripts': [
