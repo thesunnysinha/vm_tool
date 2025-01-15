@@ -28,9 +28,9 @@ setup(
     },
     license='MIT',
     include_package_data=True,
-    url='https://github.com/thesunnysinha/vm_tool',  # Replace with your GitHub repo URL
+    url='https://github.com/thesunnysinha/vm_tool',
     project_urls={
-        'Documentation': 'https://github.com/thesunnysinha/vm_tool/README.md',  # Replace if applicable
+        'Documentation': 'https://github.com/thesunnysinha/vm_tool/README.md',
         'Source': 'https://github.com/thesunnysinha/vm_tool',
         'Tracker': 'https://github.com/thesunnysinha/vm_tool/issues',
     },
