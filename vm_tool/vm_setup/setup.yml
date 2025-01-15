@@ -6,6 +6,17 @@
     static_playbook_dir: "{{ playbook_dir }}"
 
   tasks:
+    - name: Gather package facts
+      package_facts:
+        manager: auto
+
+    - name: Install sshpass if execution type is cloud and not already installed
+      apt:
+        name: sshpass
+        state: present
+      when: EXECUTION_TYPE == "cloud" and "'sshpass' not in ansible_facts.packages"
+      become: yes
+
     - name: Set project_dest_dir variable
       set_fact:
         project_dest_dir: "{{ static_playbook_dir }}/project"

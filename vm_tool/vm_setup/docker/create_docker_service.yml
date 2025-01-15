@@ -28,6 +28,16 @@
         state: touch
         mode: '0644'
 
+    - name: Check if Docker Compose File Path is Valid
+      ansible.builtin.stat:
+        path: "{{ project_dest_dir }}/{{ DOCKER_COMPOSE_FILE_PATH | default('docker-compose.yml') }}"
+      register: compose_file_stat
+
+    - name: Fail if Docker Compose File Path is Invalid
+      ansible.builtin.fail:
+        msg: "The specified Docker Compose file path '{{ project_dest_dir }}/{{ DOCKER_COMPOSE_FILE_PATH | default('docker-compose.yml') }}' does not exist."
+      when: not compose_file_stat.stat.exists
+
     - name: Insert Docker Service Configuration
       ansible.builtin.blockinfile:
         path: "{{ service_file_path }}"
@@ -39,7 +49,7 @@
           [Service]
           Type=simple
           WorkingDirectory={{ project_dest_dir }}
-          ExecStart=docker compose -f docker-compose.yml up -d
+          ExecStart=docker compose -f {{ DOCKER_COMPOSE_FILE_PATH | default('docker-compose.yml') }} up -d
           Restart=always
           RestartSec=10s
 
