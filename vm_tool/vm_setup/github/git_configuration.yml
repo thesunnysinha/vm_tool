@@ -1,0 +1,22 @@
+- name: Git Configuration Playbook
+  block:
+    - name: Configure Git with GitHub token
+      shell: |
+        git config --global credential.helper store
+        echo "https://{{ GITHUB_USERNAME }}:{{ GITHUB_TOKEN }}@github.com" > ~/.git-credentials
+      become: yes
+      when: GITHUB_TOKEN is defined and GITHUB_USERNAME is defined
+
+    - name: Remove existing Project repository if present
+      file:
+        path: "{{ project_dest_dir }}"
+        state: absent
+        force: yes
+      become: yes
+
+    - name: Clone the Project repository
+      git:
+        repo: "{{ GITHUB_PROJECT_URL }}"
+        dest: "{{ project_dest_dir }}"
+        version: main
+      become: yes

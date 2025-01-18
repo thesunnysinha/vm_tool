@@ -1,0 +1,16 @@
+- name: Project Service Playbook
+  block:
+    - name: Set service_file_path variable
+      set_fact:
+        service_file_path: /etc/systemd/system/project.service
+
+    - name: Create Docker Service
+      include_tasks: docker/create_docker_service.yml
+
+    - name: Enable and start project service
+      ansible.builtin.systemd:
+        name: project
+        state: started
+        enabled: yes
+      become: yes
+      ignore_errors: yes

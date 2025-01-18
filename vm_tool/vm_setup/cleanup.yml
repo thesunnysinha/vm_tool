@@ -1,0 +1,27 @@
+- name: Cleanup VM
+  block:
+    - name: Remove GitHub credentials from git-credentials
+      file:
+        path: ~/.git-credentials
+        state: absent
+      become: yes
+      when: GITHUB_TOKEN is defined
+
+    - name: Clear Git credential helper configuration
+      shell: git config --global --unset credential.helper
+      become: yes
+      when: GITHUB_TOKEN is defined
+
+    - name: Unset environment variables
+      shell: |
+        unset GITHUB_PROJECT_URL
+        unset GITHUB_USERNAME
+        unset GITHUB_TOKEN
+        unset DOCKERHUB_USERNAME
+        unset DOCKERHUB_PASSWORD
+      environment:
+        GITHUB_PROJECT_URL: "{{ GITHUB_PROJECT_URL }}"
+        GITHUB_USERNAME: "{{ GITHUB_USERNAME }}"
+        GITHUB_TOKEN: "{{ GITHUB_TOKEN }}"
+        DOCKERHUB_USERNAME: "{{ DOCKERHUB_USERNAME }}"
+        DOCKERHUB_PASSWORD: "{{ DOCKERHUB_PASSWORD }}"

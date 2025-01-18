@@ -3,17 +3,43 @@ import ansible_runner
 import os
 import yaml
 from pydantic import BaseModel, validator
-from typing import List
+from typing import List, Optional
 
 class SetupRunnerConfig(BaseModel):
-    github_username: str
-    github_token: str
+    github_username: Optional[str] = None
+    github_token: Optional[str] = None
     github_project_url: str
     docker_compose_file_path: str = 'docker-compose.yml'
+    dockerhub_username: Optional[str] = None
+    dockerhub_password: Optional[str] = None
 
     @validator('docker_compose_file_path', pre=True, always=True)
     def set_default_docker_compose_file_path(cls, v):
         return v or 'docker-compose.yml'
+
+    @validator('dockerhub_password', always=True)
+    def check_dockerhub_password(cls, v, values):
+        if values.get('dockerhub_username') and not v:
+            raise ValueError("DockerHub password must be provided if DockerHub username is specified")
+        return v
+    
+    @validator('dockerhub_username', always=True)
+    def check_dockerhub_username(cls, v, values):
+        if values.get('dockerhub_password') and not v:
+            raise ValueError("DockerHub username must be provided if DockerHub password is specified")
+        return v
+    
+    @validator('github_token', always=True)
+    def check_github_token(cls, v, values):
+        if values.get('github_username') and not v:
+            raise ValueError("GitHub token must be provided if GitHub username is specified")
+        return v
+    
+    @validator('github_username', always=True)
+    def check_github_username(cls, v, values):
+        if values.get('github_token') and not v:
+            raise ValueError("GitHub username must be provided if GitHub token is specified")
+        return v
 
 class SSHConfig(BaseModel):
     ssh_username: str
@@ -26,6 +52,8 @@ class SetupRunner:
         self.github_token = config.github_token
         self.github_project_url = config.github_project_url
         self.docker_compose_file_path = config.docker_compose_file_path
+        self.dockerhub_username = config.dockerhub_username
+        self.dockerhub_password = config.dockerhub_password
 
     def _run_ansible_playbook(self, extravars, inventory_file):
         # Get the current directory of this script
@@ -38,7 +66,7 @@ class SetupRunner:
         os.makedirs(venv_dir, exist_ok=True)
 
         # Construct dynamic paths
-        playbook_path = os.path.join(current_dir, 'vm_setup', 'setup.yml')
+        playbook_path = os.path.join(current_dir, 'vm_setup', 'main.yml')
         inventory_path = os.path.join(current_dir, 'vm_setup', inventory_file)
 
         try:
@@ -62,6 +90,8 @@ class SetupRunner:
             'GITHUB_USERNAME': self.github_username,
             'GITHUB_TOKEN': self.github_token,
             'GITHUB_PROJECT_URL': self.github_project_url,
+            'DOCKERHUB_USERNAME': self.dockerhub_username,
+            'DOCKERHUB_PASSWORD': self.dockerhub_password,
             'EXECUTION_TYPE': "normal"
         }
 
@@ -84,8 +114,6 @@ class SetupRunner:
             }
         }
 
-        print(ssh_configs)
-
         for i, ssh_config in enumerate(ssh_configs):
             host_key = f'cloud_host_{i}'
             inventory_content['all']['hosts'][host_key] = {
@@ -103,6 +131,8 @@ class SetupRunner:
             'GITHUB_USERNAME': self.github_username,
             'GITHUB_TOKEN': self.github_token,
             'GITHUB_PROJECT_URL': self.github_project_url,
+            'DOCKERHUB_USERNAME': self.dockerhub_username,
+            'DOCKERHUB_PASSWORD': self.dockerhub_password,
             'EXECUTION_TYPE': "cloud"
         }
 

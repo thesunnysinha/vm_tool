@@ -1,0 +1,6 @@
+- name: Dockerhub Login
+  block:
+    - name: Log in to Docker Hub
+      shell: echo "{{ DOCKERHUB_PASSWORD }}" | docker login --username "{{ DOCKERHUB_USERNAME }}" --password-stdin
+      ignore_errors: yes
+      become: yes

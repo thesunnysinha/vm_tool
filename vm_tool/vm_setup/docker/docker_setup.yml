@@ -1,0 +1,7 @@
+- name: Docker Setup Playbook
+  block:
+    - name: Adding Docker and Compose packages
+      include_tasks: docker/install_docker_and_compose.yml
+
+    - name: Log in to Docker Hub
+      include_tasks: docker/login_to_docker_hub.yml

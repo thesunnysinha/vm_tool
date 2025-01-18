@@ -1,0 +1,8 @@
+all:
+  hosts:
+    cloud_host_0:
+      ansible_host: 172.105.49.244
+      ansible_ssh_pass: Sunny@27072000@
+      ansible_user: root
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
