@@ -1,5 +1,11 @@
 - name: Setup VM
   block:
-    - name: Set project_dest_dir variable
+    - name: Set project_dest_dir variable for cloud
       set_fact:
-        project_dest_dir: "{{ static_playbook_dir }}/project"
+        project_dest_dir: "{{ ansible_user_dir }}/project"
+      when: EXECUTION_TYPE == "cloud"
+
+    - name: Set project_dest_dir variable for normal
+      set_fact:
+        project_dest_dir: "{{ playbook_dir }}/project"
+      when: EXECUTION_TYPE == "normal"
