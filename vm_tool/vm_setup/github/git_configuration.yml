@@ -1,5 +1,11 @@
 - name: Git Configuration Playbook
   block:
+    - name: Ensure Git is installed
+      package:
+        name: git
+        state: present
+      become: yes
+
     - name: Configure Git with GitHub token
       shell: |
         git config --global credential.helper store
@@ -7,16 +13,27 @@
       become: yes
       when: GITHUB_TOKEN is defined and GITHUB_USERNAME is defined
 
+    - name: Check if project directory exists
+      stat:
+        path: "{{ project_dest_dir }}"
+      register: project_dir_stat
+
     - name: Remove existing Project repository if present
       file:
         path: "{{ project_dest_dir }}"
         state: absent
         force: yes
       become: yes
+      when: project_dir_stat.stat.exists
 
-    - name: Clone the Project repository
+    - name: Log the GitHub repository being cloned
+      debug:
+        msg: "Cloning repository from {{ GITHUB_PROJECT_URL }} (branch: {{ GITHUB_BRANCH }})"
+
+    - name: Clone the Project repository with shallow clone
       git:
         repo: "{{ GITHUB_PROJECT_URL }}"
         dest: "{{ project_dest_dir }}"
-        version: main
+        version: "{{ GITHUB_BRANCH }}"
+        depth: 1
       become: yes

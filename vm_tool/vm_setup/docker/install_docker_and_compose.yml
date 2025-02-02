@@ -10,10 +10,28 @@
       register: docker_compose_installed
       ignore_errors: yes
 
-    # - name: Update apt package index
-    #   ansible.builtin.apt:
-    #     update_cache: yes
-    #   when: docker_installed.rc != 0 or docker_compose_installed.rc != 0
+    - name: Log Docker installation status
+      ansible.builtin.debug:
+        msg: "Docker is {{ 'installed' if docker_installed.rc == 0 else 'not installed' }}"
+
+    - name: Log Docker Compose installation status
+      ansible.builtin.debug:
+        msg: "Docker Compose is {{ 'installed' if docker_compose_installed.rc == 0 else 'not installed' }}"
+
+    - name: Get system architecture
+      ansible.builtin.command: dpkg --print-architecture
+      register: system_arch
+      changed_when: false
+
+    - name: Get Ubuntu version codename
+      ansible.builtin.command: lsb_release -cs
+      register: ubuntu_codename
+      changed_when: false
+
+    - name: Update apt package index
+      ansible.builtin.apt:
+        update_cache: yes
+      when: docker_installed.rc != 0 or docker_compose_installed.rc != 0
 
     - name: Install prerequisites
       ansible.builtin.apt:
@@ -25,6 +43,7 @@
           - lsb-release
           - software-properties-common
         state: present
+      when: docker_installed.rc != 0 or docker_compose_installed.rc != 0
 
     - name: Add Docker GPG key
       ansible.builtin.shell:
@@ -32,14 +51,14 @@
           curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --yes --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
       when: docker_installed.rc != 0 or docker_compose_installed.rc != 0
 
-    - name: Add Docker repository
+    - name: Determine correct Ubuntu codename
+      set_fact:
+        ubuntu_codename_fixed: "{{ 'jammy' if ubuntu_codename.stdout == 'noble' else ubuntu_codename.stdout }}"
+
+    - name: Add Docker repository (auto-detect architecture)
       ansible.builtin.shell:
         cmd: |
-          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-      when: docker_installed.rc != 0 or docker_compose_installed.rc != 0
-
-    - name: Set up the Docker stable repository
-      ansible.builtin.command: echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+          echo "deb [arch={{ system_arch.stdout }} signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu {{ ubuntu_codename_fixed }} stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
       when: docker_installed.rc != 0 or docker_compose_installed.rc != 0
 
     - name: Update apt package index again
@@ -47,7 +66,7 @@
         update_cache: yes
       when: docker_installed.rc != 0 or docker_compose_installed.rc != 0
 
-    - name: Install Docker and Docker Compose
+    - name: Install Docker and Docker Compose (if available in repo)
       ansible.builtin.apt:
         name:
           - docker-ce
@@ -55,6 +74,8 @@
           - containerd.io
           - docker-compose-plugin
         state: present
+      ignore_errors: yes
+      register: docker_install_status
       when: docker_installed.rc != 0 or docker_compose_installed.rc != 0
 
     - name: Enable and Start Docker service
@@ -62,9 +83,10 @@
         name: docker
         enabled: yes
         state: started
-      when: docker_installed.rc != 0
-      
+      when: docker_installed.rc != 0 or docker_compose_installed.rc != 0
+
     - name: Change permissions for Docker socket
       ansible.builtin.command: sudo chmod 666 /var/run/docker.sock
       ignore_errors: yes
+      when: docker_installed.rc != 0 or docker_compose_installed.rc != 0
   become: yes

@@ -32,6 +32,7 @@ config = SetupRunnerConfig(
     github_username='your_github_username',  # Required if the repository is private, e.g., username
     github_token='your_github_token',        # Required if the repository is private, e.g., token
     github_project_url='your_github_project_url',  # e.g., https://github.com/username/repo
+    github_branch='your_branch_name',        # Optional, defaults to 'main'
     docker_compose_file_path='path_to_your_docker_compose_file',  # Optional, defaults to 'docker-compose.yml'
     dockerhub_username='your_dockerhub_username',  # Required if DockerHub login is needed, e.g., dockerhub_user
     dockerhub_password='your_dockerhub_password'   # Required if DockerHub login is needed, e.g., dockerhub_password
@@ -66,6 +67,7 @@ config = SetupRunnerConfig(
     github_username='your_github_username',  # Required if the repository is private, e.g., username
     github_token='your_github_token',        # Required if the repository is private, e.g., token
     github_project_url='your_github_project_url',  # e.g., https://github.com/username/repo
+    github_branch='your_branch_name',        # Optional, defaults to 'main'
     docker_compose_file_path='path_to_your_docker_compose_file',  # Optional, defaults to 'docker-compose.yml'
     dockerhub_username='your_dockerhub_username',  # Required if DockerHub login is needed, e.g., dockerhub_user
     dockerhub_password='your_dockerhub_password'   # Required if DockerHub login is needed, e.g., dockerhub_password
@@ -76,13 +78,15 @@ runner = SetupRunner(config)
 ssh_configs = [
     SSHConfig(
         ssh_username='your_ssh_username_1',        # e.g., ssh_user_1
-        ssh_password='your_ssh_password_1',        # e.g., ssh_password_1
-        ssh_hostname='your_ssh_hostname_1'         # e.g., ssh1.example.com
+        ssh_password='your_ssh_password_1',        # Optional, only use if you don’t want to use SSH key
+        ssh_hostname='your_ssh_hostname_1',         # e.g., ssh1.example.com
+        ssh_identity_file='/path/to/your/ssh_key_1'            # Optional, path to SSH Identity file
     ),
     SSHConfig(
         ssh_username='your_ssh_username_2',        # e.g., ssh_user_2
-        ssh_password='your_ssh_password_2',        # e.g., ssh_password_2
-        ssh_hostname='your_ssh_hostname_2'         # e.g., ssh2.example.com
+        ssh_password='your_ssh_password_2',        # Optional, only use if you don’t want to use SSH key
+        ssh_hostname='your_ssh_hostname_2',         # e.g., ssh2.example.com
+        ssh_key='/path/to/your/ssh_key_2'            # Optional, path to SSH Identity file
     )
     # Add more SSHConfig instances as needed
 ]
