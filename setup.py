@@ -11,7 +11,7 @@ else:
 
 setup(
     name='vm_tool',
-    version='1.0.24',  # This will be updated by bump2version
+    version='1.0.25',  # This will be updated by bump2version
     packages=find_packages(),
     description='A Comprehensive Tool for Setting Up Virtual Machines.',
     long_description=long_description,
