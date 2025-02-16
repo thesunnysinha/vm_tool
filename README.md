@@ -77,16 +77,16 @@ runner = SetupRunner(config)
 
 ssh_configs = [
     SSHConfig(
-        ssh_username='your_ssh_username_1',        # e.g., ssh_user_1
-        ssh_password='your_ssh_password_1',        # Optional, only use if you don’t want to use SSH key
-        ssh_hostname='your_ssh_hostname_1',         # e.g., ssh1.example.com
-        ssh_identity_file='/path/to/your/ssh_key_1'            # Optional, path to SSH Identity file
+        ssh_username='your_ssh_username_1',           # e.g., ssh_user_1
+        ssh_password='your_ssh_password_1',           # Optional, only use if you don’t want to use SSH key
+        ssh_hostname='your_ssh_hostname_1',           # e.g., ssh1.example.com
+        ssh_identity_file='/path/to/your/ssh_key_1'   # Optional, path to SSH Identity file
     ),
     SSHConfig(
-        ssh_username='your_ssh_username_2',        # e.g., ssh_user_2
-        ssh_password='your_ssh_password_2',        # Optional, only use if you don’t want to use SSH key
-        ssh_hostname='your_ssh_hostname_2',         # e.g., ssh2.example.com
-        ssh_key='/path/to/your/ssh_key_2'            # Optional, path to SSH Identity file
+        ssh_username='your_ssh_username_2',           # e.g., ssh_user_2
+        ssh_password='your_ssh_password_2',           # Optional, only use if you don’t want to use SSH key
+        ssh_hostname='your_ssh_hostname_2',           # e.g., ssh2.example.com
+        ssh_identity_file='/path/to/your/ssh_key_2'   # Optional, path to SSH Identity file
     )
     # Add more SSHConfig instances as needed
 ]
