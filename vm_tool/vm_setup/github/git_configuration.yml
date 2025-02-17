@@ -30,6 +30,13 @@
       debug:
         msg: "Cloning repository from {{ GITHUB_PROJECT_URL }} (branch: {{ GITHUB_BRANCH }})"
 
+    - name: Ensure project directory is empty
+      file:
+        path: "{{ project_dest_dir }}"
+        state: directory
+        mode: '0755'
+      become: yes
+
     - name: Clone the Project repository with shallow clone
       git:
         repo: "{{ GITHUB_PROJECT_URL }}"

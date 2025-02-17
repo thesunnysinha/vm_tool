@@ -2,7 +2,7 @@ import argparse
 
 def main():
     parser = argparse.ArgumentParser(description='Setup VMs using Ansible.')
-    parser.add_argument('--version', action='version', version='1.0.26')
+    parser.add_argument('--version', action='version', version='1.0.27')
 
     args = parser.parse_args()
 
