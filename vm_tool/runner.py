@@ -2,7 +2,7 @@ import sys
 import ansible_runner
 import os
 import yaml
-from pydantic import BaseModel, validator, model_validator
+from pydantic import BaseModel, validator, model_validator, Field
 from typing import List, Optional
 
 class SetupRunnerConfig(BaseModel):
@@ -19,13 +19,23 @@ class SetupRunnerConfig(BaseModel):
         dockerhub_password (Optional[str]): DockerHub password (required if username is provided).
     """
 
-    github_username: Optional[str] = None
-    github_token: Optional[str] = None
-    github_project_url: str
-    github_branch: str = "main"  # Default to main branch
-    docker_compose_file_path: str = 'docker-compose.yml'
-    dockerhub_username: Optional[str] = None
-    dockerhub_password: Optional[str] = None
+    github_username: Optional[str] = Field(
+        default=None, description="GitHub username for authentication (optional)"
+    )
+    github_token: Optional[str] = Field(
+        default=None, description="GitHub token for authentication (optional)"
+    )
+    github_project_url: str = Field(..., description="URL of the GitHub repository")
+    github_branch: str = Field(default='main', description="GitHub branch to use (default: 'main')")
+    docker_compose_file_path: str = Field(
+        default='docker-compose.yml', description="Path to the Docker Compose file (default: 'docker-compose.yml')"
+    )
+    dockerhub_username: Optional[str] = Field(
+        default=None, description="DockerHub username (optional)"
+    )
+    dockerhub_password: Optional[str] = Field(
+        default=None, description="DockerHub password (required if username is provided)"
+    )
 
     @validator('docker_compose_file_path', pre=True, always=True)
     def set_default_docker_compose_file_path(cls, v):
@@ -71,10 +81,14 @@ class SSHConfig(BaseModel):
         ssh_identity_file (Optional[str]): Path to SSH private key file (optional if password is provided).
     """
 
-    ssh_username: str
-    ssh_hostname: str
-    ssh_password: Optional[str] = None
-    ssh_identity_file: Optional[str] = None
+    ssh_username: str = Field(..., description="SSH username")
+    ssh_hostname: str = Field(..., description="SSH host/IP")
+    ssh_password: Optional[str] = Field(
+        default=None, description="SSH password (optional if identity file is provided)"
+    )
+    ssh_identity_file: Optional[str] = Field(
+        default=None, description="Path to SSH private key file (optional if password is provided)"
+    )
 
     @model_validator(mode="before")
     def validate_authentication(cls, values):

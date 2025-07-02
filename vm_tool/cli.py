@@ -1,14 +1,9 @@
 import argparse
 
 def main():
-    parser = argparse.ArgumentParser(description='Setup VMs using Ansible.')
-    parser.add_argument('--version', action='version', version='1.0.27')
-
-    args = parser.parse_args()
-
-    # If no arguments are provided, print the help message
-    if not vars(args):
-        parser.print_help()
+    parser = argparse.ArgumentParser(description='VM Tool version info')
+    parser.add_argument('--version', action='version', version='1.0.28')
+    parser.parse_args()
 
 if __name__ == '__main__':
     main()

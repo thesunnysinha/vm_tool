@@ -136,4 +136,49 @@ When you run the SSH setup, the tool will:
 
 ---
 
+## Command Line Version Info
+
+If you want to check the installed version of `vm_tool`, you can use the following command:
+
+```bash
+vm_tool --version
+```
+
+This will print the current version of the package.
+
+---
+
+## Python API Usage
+
+The primary class for using the VM Setup Tool is `SetupRunner`, which orchestrates the entire setup process.
+
+### **Example Usage**  
+
+```python
+from vm_tool.runner import SetupRunner, SetupRunnerConfig
+
+config = SetupRunnerConfig(
+    # Configuration options
+)
+
+runner = SetupRunner(config)
+
+runner.run_setup()
+```
+
+### **Configuration Options**  
+- `github_username`: Your GitHub username (required for private repositories).
+- `github_token`: A GitHub token with repo access (required for private repositories).
+- `github_project_url`: The URL of your GitHub project.
+- `github_branch`: The branch of the GitHub repository to use.
+- `docker_compose_file_path`: Path to your Docker Compose file.
+- `dockerhub_username`: Your Docker Hub username (if Docker Hub login is needed).
+- `dockerhub_password`: Your Docker Hub password (if Docker Hub login is needed).
+
+### **Methods**  
+- `run_setup()`: Executes the VM setup process.
+- `run_cloud_setup(ssh_configs)`: Executes the cloud VM setup process using the provided SSH configurations.
+
+---
+
 With its comprehensive features, the **VM Setup Tool** eliminates the hassle of manual configurations and enables seamless integration of VMs into your workflows. Start using the tool today to automate and optimize your virtual machine setup process.
