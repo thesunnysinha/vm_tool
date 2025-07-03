@@ -1,11 +1,16 @@
 - name: Setup VM
   block:
+    # --- Extract Project Name from GITHUB_PROJECT_URL ---
+    - name: Extract project name from GITHUB_PROJECT_URL
+      set_fact:
+        project_name: "{{ GITHUB_PROJECT_URL | basename | regex_replace('\\.git$', '') }}"
+
     - name: Set project_dest_dir variable for cloud
       set_fact:
-        project_dest_dir: "{{ ansible_user_dir }}/project"
+        project_dest_dir: "{{ ansible_user_dir }}/{{ project_name }}"
       when: EXECUTION_TYPE == "cloud"
 
     - name: Set project_dest_dir variable for normal
       set_fact:
-        project_dest_dir: "{{ playbook_dir }}/project"
+        project_dest_dir: "{{ playbook_dir }}/{{ project_name }}"
       when: EXECUTION_TYPE == "normal"

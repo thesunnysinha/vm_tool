@@ -6,11 +6,6 @@
         state: present
       become: yes
     
-    # --- Extract Project Name from GITHUB_PROJECT_URL ---
-    - name: Extract project name from GITHUB_PROJECT_URL
-      set_fact:
-        project_name: "{{ GITHUB_PROJECT_URL | basename | regex_replace('\\.git$', '') }}"
-
     # --- Git Credential Setup ---
     - name: Check if Git credentials file exists
       stat:

@@ -9,6 +9,9 @@
     - name: Git Configuration
       include_tasks: github/git_configuration.yml
 
+    - name: Setup Project Environment File
+      include_tasks: setup_project_env.yml
+
     - name: Docker Setup
       include_tasks: docker/docker_setup.yml
 

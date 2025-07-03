@@ -31,3 +31,5 @@ Thumbs.db
 .idea/
 *.sublime-project
 *.sublime-workspace
+
+dynamic_inventory.yml

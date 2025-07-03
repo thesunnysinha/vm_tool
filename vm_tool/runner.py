@@ -17,6 +17,8 @@ class SetupRunnerConfig(BaseModel):
         docker_compose_file_path (str): Path to the Docker Compose file (default: 'docker-compose.yml').
         dockerhub_username (Optional[str]): DockerHub username (optional).
         dockerhub_password (Optional[str]): DockerHub password (required if username is provided).
+        env_path (Optional[str]): Path where the environment file should be created (optional).
+        env_data (Optional[dict]): Environment data to dump into the file (optional, should be a dict).
     """
 
     github_username: Optional[str] = Field(
@@ -36,11 +38,26 @@ class SetupRunnerConfig(BaseModel):
     dockerhub_password: Optional[str] = Field(
         default=None, description="DockerHub password (required if username is provided)"
     )
+    env_path: Optional[str] = Field(
+        default=None, description="Path where the environment file should be created (optional)"
+    )
+    env_data: Optional[dict] = Field(
+        default=None, description="Environment data to dump into the file (optional, should be a dict)"
+    )
 
-    @validator('docker_compose_file_path', pre=True, always=True)
-    def set_default_docker_compose_file_path(cls, v):
-        """Ensures a default value for the Docker Compose file path."""
-        return v or 'docker-compose.yml'
+    @validator('env_path', always=True)
+    def check_env_path_with_env_data(cls, v, values):
+        """If env_data is provided, env_path must also be provided."""
+        if values.get('env_data') is not None and not v:
+            raise ValueError("env_path must be provided if env_data is specified")
+        return v
+
+    @validator('env_data', always=True)
+    def check_env_data_with_env_path(cls, v, values):
+        """If env_path is provided, env_data must also be provided."""
+        if values.get('env_path') is not None and v is None:
+            raise ValueError("env_data must be provided if env_path is specified")
+        return v
 
     @validator('dockerhub_password', always=True)
     def check_dockerhub_password(cls, v, values):
@@ -122,6 +139,8 @@ class SetupRunner:
         self.docker_compose_file_path = config.docker_compose_file_path
         self.dockerhub_username = config.dockerhub_username
         self.dockerhub_password = config.dockerhub_password
+        self.env_path = config.env_path
+        self.env_data = config.env_data
 
     def _run_ansible_playbook(self, extravars, inventory_file):
         """Executes an Ansible playbook with the given variables and inventory."""
@@ -160,6 +179,9 @@ class SetupRunner:
 
         if self.docker_compose_file_path:
             extravars["DOCKER_COMPOSE_FILE_PATH"] = self.docker_compose_file_path
+        if self.env_path and self.env_data:
+            extravars["ENV_PATH"] = self.env_path
+            extravars["ENV_DATA"] = self.env_data
 
         self._run_ansible_playbook(extravars, 'inventory.yml')
 
@@ -204,5 +226,8 @@ class SetupRunner:
 
         if self.docker_compose_file_path:
             extravars["DOCKER_COMPOSE_FILE_PATH"] = self.docker_compose_file_path
+        if self.env_path and self.env_data:
+            extravars["ENV_PATH"] = self.env_path
+            extravars["ENV_DATA"] = self.env_data
 
         self._run_ansible_playbook(extravars, 'dynamic_inventory.yml')

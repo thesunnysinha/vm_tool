@@ -1,0 +1,7 @@
+---
+- name: Create environment file if env_path and env_data are provided
+  when: ENV_PATH is defined and ENV_DATA is defined and PROJECT_PATH is defined
+  copy:
+    dest: "{{ project_dest_dir }}/{{ ENV_PATH }}"
+    content: "{{ ENV_DATA | to_nice_yaml }}"
+    mode: '0644'
