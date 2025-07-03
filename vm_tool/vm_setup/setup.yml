@@ -5,6 +5,7 @@
       set_fact:
         project_name: "{{ GITHUB_PROJECT_URL | basename | regex_replace('\\.git$', '') }}"
 
+    # --- Set project_dest_dir based on EXECUTION_TYPE ---
     - name: Set project_dest_dir variable for cloud
       set_fact:
         project_dest_dir: "{{ ansible_user_dir }}/{{ project_name }}"
