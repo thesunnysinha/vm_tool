@@ -27,8 +27,8 @@ runner = SetupRunner(config)
 # SSH configuration for target VM(s)
 ssh_configs = [
     SSHConfig(
-        ssh_username=os.environ.get("SSH_USERNAME", "ubuntu"),
-        ssh_hostname=os.environ.get("SSH_HOSTNAME"),
+        ssh_username=os.environ.get("EC2_USER", "ubuntu"),
+        ssh_hostname=os.environ.get("EC2_HOST"),
         ssh_identity_file=os.environ.get("SSH_IDENTITY_FILE", "~/.ssh/id_rsa"),
     ),
 ]

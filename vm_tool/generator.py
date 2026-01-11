@@ -43,7 +43,7 @@ class PipelineGenerator:
         if self.platform == "github":
             return self._generate_github_actions()
         elif self.platform == "gitlab":
-            return self._generate_gitlab_ci()
+            raise NotImplementedError("GitLab CI support coming soon")
         else:
             raise ValueError(f"Unsupported platform: {self.platform}")
 

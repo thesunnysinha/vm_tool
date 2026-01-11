@@ -26,9 +26,9 @@ jobs:
       - name: Create SSH identity file
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_ID_RSA }}" > ~/.ssh/id_rsa
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.SSH_HOSTNAME }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
       - name: Full VM Setup and Deploy
         env:
@@ -39,8 +39,8 @@ jobs:
           DOCKER_COMPOSE_FILE: docker-compose.prod.yml
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
-          SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
-          SSH_HOSTNAME: ${{ secrets.SSH_HOSTNAME }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
           SSH_IDENTITY_FILE: ~/.ssh/id_rsa
         run: python scripts/deploy_to_vm.py
 

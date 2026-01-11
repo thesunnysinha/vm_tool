@@ -124,6 +124,33 @@ def main():
     )
     restore_backup_parser.add_argument("--host", type=str, required=True)
     restore_backup_parser.add_argument("--user", type=str, default="ubuntu")
+    # VM Setup command
+    setup_parser = subparsers.add_parser(
+        "setup", help="Setup VM with Docker and deploy"
+    )
+    setup_parser.add_argument("--github-username", type=str)
+    setup_parser.add_argument("--github-token", type=str)
+    setup_parser.add_argument("--github-project-url", type=str, required=True)
+    setup_parser.add_argument("--github-branch", type=str, default="main")
+    setup_parser.add_argument(
+        "--docker-compose-file-path", type=str, default="docker-compose.yml"
+    )
+    setup_parser.add_argument("--dockerhub-username", type=str)
+    setup_parser.add_argument("--dockerhub-password", type=str)
+
+    # Cloud Setup command
+    setup_cloud_parser = subparsers.add_parser("setup-cloud", help="Setup cloud VMs")
+    setup_cloud_parser.add_argument(
+        "--ssh-configs", type=str, required=True, help="Path to SSH configs JSON file"
+    )
+    setup_cloud_parser.add_argument("--github-username", type=str)
+    setup_cloud_parser.add_argument("--github-token", type=str)
+    setup_cloud_parser.add_argument("--github-project-url", type=str, required=True)
+    setup_cloud_parser.add_argument("--github-branch", type=str, default="main")
+    setup_cloud_parser.add_argument(
+        "--docker-compose-file-path", type=str, default="docker-compose.yml"
+    )
+
     # K8s Setup command
     k8s_parser = subparsers.add_parser(
         "setup-k8s", help="Install K3s Kubernetes cluster"
@@ -406,6 +433,43 @@ def main():
                 print(f"❌ Restore failed: {e}")
                 sys.exit(1)
 
+    elif args.command == "setup":
+        from vm_tool.runner import SetupRunner, SetupRunnerConfig
+
+        config = SetupRunnerConfig(
+            github_username=args.github_username,
+            github_token=args.github_token,
+            github_project_url=args.github_project_url,
+            github_branch=args.github_branch,
+            docker_compose_file_path=args.docker_compose_file_path,
+            dockerhub_username=args.dockerhub_username,
+            dockerhub_password=args.dockerhub_password,
+        )
+        runner = SetupRunner(config)
+        runner.run_setup()
+        print("✅ VM setup complete!")
+
+    elif args.command == "setup-cloud":
+        import json
+        from vm_tool.runner import SetupRunner, SetupRunnerConfig, SSHConfig
+
+        config = SetupRunnerConfig(
+            github_username=args.github_username,
+            github_token=args.github_token,
+            github_project_url=args.github_project_url,
+            github_branch=args.github_branch,
+            docker_compose_file_path=args.docker_compose_file_path,
+        )
+        runner = SetupRunner(config)
+
+        # Load SSH configs from JSON file
+        with open(args.ssh_configs, "r") as f:
+            ssh_data = json.load(f)
+
+        ssh_configs = [SSHConfig(**cfg) for cfg in ssh_data]
+        runner.run_cloud_setup(ssh_configs)
+        print("✅ Cloud setup complete!")
+
     elif args.command == "setup-k8s":
         try:
             # We need a dummy config to init SetupRunner, or refactor SetupRunner to be more flexible.
@@ -610,9 +674,13 @@ def main():
                 "deploy_command": deploy_command,
             }
 
-            generator = PipelineGenerator()
-            generator.generate(platform=args.platform, context=context)
-            print(f"✅ Deployment pipeline generated for branch '{branch}'.")
+            # Use new generator API
+            generator = PipelineGenerator(platform=args.platform)
+            output = generator.generate()
+
+            # Save to file
+            output_path = generator.save()
+            print(f"✅ Deployment pipeline generated: {output_path}")
         except Exception as e:
             print(f"Error: {e}")
             sys.exit(1)
