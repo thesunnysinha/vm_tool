@@ -44,11 +44,13 @@ jobs:
         echo "Setting up K3s..."
         # vm_tool setup-k8s --inventory inventory.yml
 
+    {% if setup_monitoring %}
     - name: Setup Observability (Prometheus/Grafana)
       if: success()
       run: |
         echo "Setting up Monitoring..."
         # vm_tool setup-monitoring --inventory inventory.yml
+    {% endif %}
 """
 
     def generate(self, platform: str = "github", context: dict = None):
@@ -59,6 +61,7 @@ jobs:
         if context is None:
             context = {
                 "branch_name": "main",
+                "setup_monitoring": True,
             }
 
         from jinja2 import Environment, BaseLoader

@@ -9,6 +9,11 @@ Use this tool to generate a GitHub Actions workflow for your project. Fill in th
         <small style="color: #666;">The branch that triggers the deployment.</small>
     </div>
 
+    <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <input type="checkbox" id="setup_monitoring" name="setup_monitoring" checked>
+        <label for="setup_monitoring" style="cursor: pointer;">Include Monitoring (Prometheus/Grafana)</label>
+    </div>
+
     <button type="button" onclick="generatePipeline()" style="padding: 0.75rem; background-color: #009485; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Generate Workflow</button>
 
 </form>
@@ -20,7 +25,7 @@ Use this tool to generate a GitHub Actions workflow for your project. Fill in th
 </div>
 
 <script>
-const TEMPLATE = `name: Project Deployment
+const TEMPLATE_BASE = `name: Project Deployment
 
 on:
   push:
@@ -54,7 +59,9 @@ jobs:
       run: |
         echo "Setting up K3s..."
         # vm_tool setup-k8s --inventory inventory.yml
+`;
 
+const TEMPLATE_MONITORING = `
     - name: Setup Observability (Prometheus/Grafana)
       if: success()
       run: |
@@ -64,9 +71,13 @@ jobs:
 
 function generatePipeline() {
     const branch = document.getElementById('branch_name').value;
+    const monitoring = document.getElementById('setup_monitoring').checked;
 
-    let output = TEMPLATE
-        .replace(/\(\( branch_name \)\)/g, branch);
+    let output = TEMPLATE_BASE.replace(/\(\( branch_name \)\)/g, branch);
+    
+    if (monitoring) {
+        output += TEMPLATE_MONITORING;
+    }
 
     document.getElementById('yamlOutput').textContent = output;
     document.getElementById('output').style.display = 'block';

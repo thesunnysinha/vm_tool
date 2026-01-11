@@ -77,6 +77,7 @@ vm_tool generate-pipeline --platform github
 The command is **interactive** by default. It will prompt you for:
 
 - Branch to trigger the workflow.
+- Whether to include Observability (Monitoring) steps.
 
 This creates a `.github/workflows/deploy.yml` file in your current directory.
 

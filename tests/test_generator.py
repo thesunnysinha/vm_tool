@@ -19,6 +19,22 @@ def test_generate_github_pipeline(mock_fs):
     handle = mock_open_func.return_value.__enter__.return_value
     handle.write.assert_called_once()
     assert "vm_tool setup-k8s" in handle.write.call_args[0][0]
+    assert "vm_tool setup-monitoring" in handle.write.call_args[0][0]  # Default is True
+
+
+def test_generate_github_pipeline_no_monitoring(mock_fs):
+    mock_open_func, mock_exists, mock_makedirs = mock_fs
+
+    generator = PipelineGenerator()
+    generator.generate(
+        platform="github", context={"branch_name": "main", "setup_monitoring": False}
+    )
+
+    handle = mock_open_func.return_value.__enter__.return_value
+    handle.write.assert_called_once()
+    content = handle.write.call_args[0][0]
+    assert "vm_tool setup-k8s" in content
+    assert "vm_tool setup-monitoring" not in content
 
 
 def test_generate_unsupported_platform():
