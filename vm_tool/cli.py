@@ -86,6 +86,15 @@ def main():
         "--inventory", type=str, default="inventory.yml", help="Inventory file"
     )
 
+    # Drift check command
+    drift_parser = subparsers.add_parser(
+        "drift-check", help="Check for configuration drift on server"
+    )
+    drift_parser.add_argument(
+        "--host", type=str, required=True, help="Target host to check"
+    )
+    drift_parser.add_argument("--user", type=str, default="ubuntu", help="SSH user")
+
     # K8s Setup command
     k8s_parser = subparsers.add_parser(
         "setup-k8s", help="Install K3s Kubernetes cluster"
@@ -307,6 +316,27 @@ def main():
             print("\n✅ Rollback completed successfully")
         except Exception as e:
             print(f"\n❌ Rollback failed: {e}")
+            sys.exit(1)
+
+    elif args.command == "drift-check":
+        from vm_tool.drift import DriftDetector
+
+        detector = DriftDetector()
+        drifts = detector.check_drift(args.host, args.user)
+
+        if not drifts:
+            print(f"✅ No drift detected on {args.host}")
+        else:
+            print(f"\n⚠️  Drift Detected on {args.host}:\n")
+            for drift in drifts:
+                status_icon = "🔄" if drift["status"] == "modified" else "❌"
+                print(f"{status_icon} {drift['file']}")
+                print(f"   Status: {drift['status']}")
+                print(f"   Expected: {drift['expected'][:16]}...")
+                if drift["actual"]:
+                    print(f"   Actual: {drift['actual'][:16]}...")
+                print()
+            print(f"Found {len(drifts)} file(s) with drift")
             sys.exit(1)
 
     elif args.command == "setup-k8s":
