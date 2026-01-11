@@ -8,6 +8,11 @@
 
     - name: Git Configuration
       include_tasks: github/git_configuration.yml
+      when: DEPLOY_MODE | default('pull') != 'push'
+
+    - name: Push Code (Zero Touch)
+      include_tasks: push_code.yml
+      when: DEPLOY_MODE | default('pull') == 'push'
 
     - name: Setup Project Environment File
       include_tasks: setup_project_env.yml
