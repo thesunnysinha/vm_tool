@@ -184,41 +184,37 @@ def main():
             setup_monitoring = enable_monitoring in ("y", "yes")
 
             dep_type_input = (
-                input("Deployment Type (kubernetes/docker) [docker]: ").strip().lower()
+                input(
+                    "Deployment Type (docker/custom) [docker] (kubernetes coming soon): "
+                )
+                .strip()
+                .lower()
             )
-            deployment_type = (
-                "kubernetes"
-                if dep_type_input in ("kubernetes", "k8s", "k")
-                else "docker"
-            )
+            deployment_type = "docker"
+            if dep_type_input in ("custom", "c"):
+                deployment_type = "custom"
+            elif dep_type_input in ("kubernetes", "k8s", "k"):
+                deployment_type = "kubernetes"
 
             docker_compose_file = "docker-compose.yml"
             env_file = None
             deploy_command = None
 
-            if deployment_type == "docker":
-                override_input = (
-                    input(
-                        "Override default deployment command? (e.g. run custom script instead of docker compose up) [y/N]: "
-                    )
-                    .strip()
-                    .lower()
-                )
+            if deployment_type == "custom":
+                deploy_command = input("Enter custom deployment command: ").strip()
 
-                if override_input in ("y", "yes"):
-                    deploy_command = input("Enter custom deployment command: ").strip()
-                else:
-                    docker_compose_file = (
-                        input(
-                            "Enter Docker Compose file name [docker-compose.yml]: "
-                        ).strip()
-                        or "docker-compose.yml"
-                    )
-                    env_file_input = input(
-                        "Enter Env file path (optional, press Enter to skip): "
+            elif deployment_type == "docker":
+                docker_compose_file = (
+                    input(
+                        "Enter Docker Compose file name [docker-compose.yml]: "
                     ).strip()
-                    if env_file_input:
-                        env_file = env_file_input
+                    or "docker-compose.yml"
+                )
+                env_file_input = input(
+                    "Enter Env file path (optional, press Enter to skip): "
+                ).strip()
+                if env_file_input:
+                    env_file = env_file_input
 
             context = {
                 "branch_name": branch,

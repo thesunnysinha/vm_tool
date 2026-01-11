@@ -106,25 +106,29 @@ def test_generate_github_pipeline_docker(mock_fs):
     assert "vm_tool deploy-docker" in content
     assert "--compose-file production.yml" in content
     assert "--env-file .env.prod" in content
-    assert '--deploy-command "./deploy.sh"' in content
     assert "--host ${{ secrets.VM_HOST }}" in content
     assert "SSH_USER" in content
     assert "vm_tool setup-k8s" not in content
+    assert "python-version: '3.12'" in content
+    assert "flake8" not in content
+    assert "pytest" not in content
+    assert "Validate Secrets" in content
 
 
-def test_generate_github_pipeline_docker_override(mock_open_func):
-    """Test generating a GitHub Actions pipeline with custom command override."""
+def test_generate_github_pipeline_custom_strategy(mock_fs):
+    """Test generating a GitHub Actions pipeline with 'custom' strategy."""
+    mock_open_func, _, _ = mock_fs
+
     context = {
         "branch_name": "main",
         "python_version": "3.12",
         "run_linting": False,
         "run_tests": False,
         "setup_monitoring": False,
-        "deployment_type": "docker",
-        # Simulating hidden inputs holding defaults or being ignored if command is dominant
-        "docker_compose_file": "docker-compose.yml",
+        "deployment_type": "custom",
+        "docker_compose_file": "docker-compose.yml",  # kept as default safety
         "env_file": None,
-        "deploy_command": "make deploy",
+        "deploy_command": "./deploy.sh",
     }
 
     generator = PipelineGenerator()
@@ -135,9 +139,12 @@ def test_generate_github_pipeline_docker_override(mock_open_func):
     content = handle.write.call_args[0][0]
 
     assert "vm_tool deploy-docker" in content
-    assert '--deploy-command "make deploy"' in content
-    # It still passes compose file because it's required arg for CLI usually, or default
-    assert "--compose-file docker-compose.yml" in content
+    assert '--deploy-command "./deploy.sh"' in content
+    assert "Custom Deployment" in content
+    assert (
+        "--compose-file" not in content
+    )  # Should not use compose file flag in custom block
+    assert "Deploy with Docker Compose" not in content
 
 
 def test_generate_unsupported_platform():

@@ -31,37 +31,30 @@ Use this tool to generate a GitHub Actions workflow for your project. Fill in th
 
     <div style="margin-top: 1rem;">
         <label style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Deployment Strategy</label>
-        <div style="display: flex; gap: 1rem;">
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <input type="radio" id="deploy_k8s" name="deployment_type" value="kubernetes" onchange="toggleMonitoring()">
-                <label for="deploy_k8s" style="cursor: pointer;">Kubernetes (K3s)</label>
-            </div>
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <input type="radio" id="deploy_docker" name="deployment_type" value="docker" checked onchange="toggleMonitoring()">
-                <label for="deploy_docker" style="cursor: pointer;">Docker Compose</label>
-            </div>
+        <div>
+            <input type="radio" id="deploy_docker" name="deployment_type" value="docker" checked onchange="toggleDeploymentOptions()">
+            <label for="deploy_docker">Docker Compose (Zero-Touch)</label>
+        </div>
+        <div style="margin-top: 0.5rem;">
+            <input type="radio" id="deploy_custom" name="deployment_type" value="custom" onchange="toggleDeploymentOptions()">
+            <label for="deploy_custom">Custom Deployment Command</label>
+        </div>
+        <div style="margin-top: 0.5rem; opacity: 0.6;">
+            <input type="radio" id="deploy_k8s" name="deployment_type" value="kubernetes" disabled onchange="toggleDeploymentOptions()">
+            <label for="deploy_k8s" style="cursor: not-allowed;">Kubernetes (K3s) - <em>Coming Soon</em></label>
         </div>
     </div>
 
     <div id="docker_options" style="margin-top: 1rem;">
+        <label for="docker_compose_file" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Docker Compose File</label>
+        <input type="text" id="docker_compose_file" name="docker_compose_file" value="docker-compose.yml" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
+        <label for="env_file" style="display: block; margin-top: 1rem; margin-bottom: 0.5rem; font-weight: bold;">Env File Path (Optional)</label>
+        <input type="text" id="env_file" name="env_file" placeholder="e.g., .env.prod" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
+    </div>
 
-        <div style="margin-bottom: 1rem;">
-            <input type="checkbox" id="override_defaults" onchange="toggleDockerInputs()">
-            <label for="override_defaults" style="font-weight: bold; cursor: pointer;">Override Default Deployment Command</label>
-            <p style="font-size: 0.8rem; color: #666; margin-top: 0.2rem;">Check this to provide a custom script or command (hides standard file options).</p>
-        </div>
-
-        <div id="standard_docker_inputs">
-            <label for="docker_compose_file" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Docker Compose File</label>
-            <input type="text" id="docker_compose_file" name="docker_compose_file" value="docker-compose.yml" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
-            <label for="env_file" style="display: block; margin-top: 1rem; margin-bottom: 0.5rem; font-weight: bold;">Env File Path (Optional)</label>
-            <input type="text" id="env_file" name="env_file" placeholder="e.g., .env.prod" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
-        </div>
-
-        <div id="custom_command_input" style="display: none;">
-            <label for="deploy_command" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Custom Deployment Command</label>
-            <input type="text" id="deploy_command" name="deploy_command" placeholder="e.g., ./scripts/deploy.sh" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
-        </div>
+    <div id="custom_options" style="margin-top: 1rem; display: none;">
+        <label for="deploy_command" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Custom Deployment Command</label>
+        <input type="text" id="deploy_command" name="deploy_command" placeholder="e.g., ./scripts/deploy.sh" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
     </div>
 
     <button type="button" onclick="generatePipeline()" style="margin-top: 1.5rem; padding: 0.75rem; background-color: #009485; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%;">Generate Workflow</button>
@@ -186,7 +179,14 @@ function generatePipeline() {
     
     if (deployType === 'kubernetes') {
         output += TEMPLATE_K8S;
+    } else if (deployType === 'custom') {
+         // Re-use docker template for custom command structure, but minimal
+         let dockerOutput = TEMPLATE_DOCKER.replace(/\(\( docker_compose_file \)\)/g, "docker-compose.yml"); // Dummy default
+         dockerOutput = dockerOutput.replace(/\(\( env_file_flag \)\)/g, "");
+         dockerOutput = dockerOutput.replace(/\(\( deploy_command_flag \)\)/g, `--deploy-command "${deployCommand}" `);
+         output += dockerOutput;
     } else {
+        // Docker Standard
         let dockerOutput = TEMPLATE_DOCKER.replace(/\(\( docker_compose_file \)\)/g, composeFile);
         
         if (envFile) {
@@ -195,11 +195,8 @@ function generatePipeline() {
              dockerOutput = dockerOutput.replace(/\(\( env_file_flag \)\)/g, "");
         }
         
-        if (deployCommand) {
-             dockerOutput = dockerOutput.replace(/\(\( deploy_command_flag \)\)/g, `--deploy-command "${deployCommand}" `);
-        } else {
-             dockerOutput = dockerOutput.replace(/\(\( deploy_command_flag \)\)/g, "");
-        }
+        // Ensure no custom command flag
+        dockerOutput = dockerOutput.replace(/\(\( deploy_command_flag \)\)/g, "");
         
         output += dockerOutput;
     }
@@ -216,27 +213,20 @@ function generatePipeline() {
 }
 // ... copy/download functions ...
 
-function toggleMonitoring() {
+function toggleDeploymentOptions() {
     const deployType = document.querySelector('input[name="deployment_type"]:checked').value;
     const dockerOptions = document.getElementById('docker_options');
+    const customOptions = document.getElementById('custom_options');
+
     if (deployType === 'docker') {
         dockerOptions.style.display = 'block';
+        customOptions.style.display = 'none';
+    } else if (deployType === 'custom') {
+        dockerOptions.style.display = 'none';
+        customOptions.style.display = 'block';
     } else {
         dockerOptions.style.display = 'none';
-    }
-}
-
-function toggleDockerInputs() {
-    const override = document.getElementById('override_defaults').checked;
-    const standardInputs = document.getElementById('standard_docker_inputs');
-    const customInput = document.getElementById('custom_command_input');
-
-    if (override) {
-        standardInputs.style.display = 'none';
-        customInput.style.display = 'block';
-    } else {
-        standardInputs.style.display = 'block';
-        customInput.style.display = 'none';
+        customOptions.style.display = 'none';
     }
 }
 
