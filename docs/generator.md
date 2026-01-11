@@ -33,11 +33,11 @@ Use this tool to generate a GitHub Actions workflow for your project. Fill in th
         <label style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Deployment Strategy</label>
         <div style="display: flex; gap: 1rem;">
             <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <input type="radio" id="deploy_k8s" name="deployment_type" value="kubernetes" checked onchange="toggleMonitoring()">
+                <input type="radio" id="deploy_k8s" name="deployment_type" value="kubernetes" onchange="toggleMonitoring()">
                 <label for="deploy_k8s" style="cursor: pointer;">Kubernetes (K3s)</label>
             </div>
             <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <input type="radio" id="deploy_docker" name="deployment_type" value="docker" onchange="toggleMonitoring()">
+                <input type="radio" id="deploy_docker" name="deployment_type" value="docker" checked onchange="toggleMonitoring()">
                 <label for="deploy_docker" style="cursor: pointer;">Docker Compose</label>
             </div>
         </div>

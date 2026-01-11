@@ -167,12 +167,12 @@ def main():
             setup_monitoring = enable_monitoring in ("y", "yes")
 
             dep_type_input = (
-                input("Deployment Type (kubernetes/docker) [kubernetes]: ")
-                .strip()
-                .lower()
+                input("Deployment Type (kubernetes/docker) [docker]: ").strip().lower()
             )
             deployment_type = (
-                "docker" if dep_type_input in ("docker", "d") else "kubernetes"
+                "kubernetes"
+                if dep_type_input in ("kubernetes", "k8s", "k")
+                else "docker"
             )
 
             context = {

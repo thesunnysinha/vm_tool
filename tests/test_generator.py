@@ -18,7 +18,9 @@ def test_generate_github_pipeline(mock_fs):
     # When using MagicMock for open, the context manager return value is what write is called on
     handle = mock_open_func.return_value.__enter__.return_value
     handle.write.assert_called_once()
-    assert "vm_tool setup-k8s" in handle.write.call_args[0][0]
+    handle.write.assert_called_once()
+    assert "vm_tool deploy-docker" in handle.write.call_args[0][0]
+    assert "vm_tool setup-k8s" not in handle.write.call_args[0][0]
     assert (
         "vm_tool setup-monitoring" not in handle.write.call_args[0][0]
     )  # Default is False

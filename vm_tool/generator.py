@@ -98,7 +98,7 @@ jobs:
                 "run_linting": False,
                 "run_tests": False,
                 "setup_monitoring": False,
-                "deployment_type": "kubernetes",
+                "deployment_type": "docker",
             }
 
         from jinja2 import Environment, BaseLoader
