@@ -105,6 +105,10 @@ const TEMPLATE_SSH = `
           echo "Error: VM_HOST secret is not set."
           exit 1
         fi
+        if [ -z "\${{ secrets.SSH_USER }}" ]; then
+          echo "Error: SSH_USER secret is not set."
+          exit 1
+        fi
 
     - name: Setup SSH Key
       run: |
@@ -133,7 +137,7 @@ const TEMPLATE_DOCKER = `
     - name: Deploy with Docker Compose
       run: |
         echo "Deploying with Docker Compose..."
-        vm_tool deploy-docker --compose-file docker-compose.yml --inventory inventory.yml
+        vm_tool deploy-docker --compose-file docker-compose.yml --host \${{ secrets.VM_HOST }} --user \${{ secrets.SSH_USER }}
 `;
 
 function generatePipeline() {

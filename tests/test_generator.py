@@ -20,6 +20,9 @@ def test_generate_github_pipeline(mock_fs):
     handle.write.assert_called_once()
     handle.write.assert_called_once()
     assert "vm_tool deploy-docker" in handle.write.call_args[0][0]
+    assert "--host ${{ secrets.VM_HOST }}" in handle.write.call_args[0][0]
+    assert "--user ${{ secrets.SSH_USER }}" in handle.write.call_args[0][0]
+    assert "SSH_USER" in handle.write.call_args[0][0]  # Secret validation check
     assert "vm_tool setup-k8s" not in handle.write.call_args[0][0]
     assert (
         "vm_tool setup-monitoring" not in handle.write.call_args[0][0]
@@ -94,6 +97,8 @@ def test_generate_github_pipeline_docker(mock_fs):
     content = handle.write.call_args[0][0]
 
     assert "vm_tool deploy-docker" in content
+    assert "--host ${{ secrets.VM_HOST }}" in content
+    assert "SSH_USER" in content
     assert "vm_tool setup-k8s" not in content
 
 

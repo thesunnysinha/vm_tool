@@ -71,7 +71,11 @@ Deploy your application using Docker Compose.
 ### Command
 
 ```bash
-vm_tool deploy-docker --inventory <INVENTORY_FILE> --compose-file <COMPOSE_FILE>
+# Using static inventory
+vm_tool deploy-docker --inventory inventory.yml --compose-file docker-compose.yml
+
+# Using dynamic host (zero-touch)
+vm_tool deploy-docker --host 192.168.1.10 --user ubuntu --compose-file docker-compose.yml
 ```
 
 ## ⚡ CI/CD Pipeline Generator
