@@ -82,7 +82,7 @@ This creates a `.github/workflows/deploy.yml` file in your current directory.
 
 1. Install Vercel CLI: `npm i -g vercel`
 2. Run `vercel` in the project root.
-3. Build Command: `mkdocs build`
+3. Build Command: `pip install -e .[dev] && python -m mkdocs build`
 4. Output Directory: `site`
 
 ### GitHub Pages
