@@ -1,0 +1,58 @@
+name: Full VM Setup and Deploy
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install vm_tool
+        run: |
+          python -m pip install --upgrade pip
+          pip install vm-tool
+
+      - name: Create SSH identity file
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_ID_RSA }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.SSH_HOSTNAME }} >> ~/.ssh/known_hosts
+
+      - name: Full VM Setup and Deploy
+        env:
+          GITHUB_USERNAME: ${{ secrets.GITHUB_USERNAME }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_PROJECT_URL: ${{ github.server_url }}/${{ github.repository }}
+          GITHUB_BRANCH: ${{ github.ref_name }}
+          DOCKER_COMPOSE_FILE: docker-compose.prod.yml
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+          SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+          SSH_HOSTNAME: ${{ secrets.SSH_HOSTNAME }}
+          SSH_IDENTITY_FILE: ~/.ssh/id_rsa
+        run: python scripts/deploy_to_vm.py
+
+      - name: Clean up SSH identity file
+        if: always()
+        run: rm -f ~/.ssh/id_rsa
+
+      - name: Notify
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ Full setup and deployment successful!"
+          else
+            echo "❌ Deployment failed"
+          fi
