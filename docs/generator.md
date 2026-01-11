@@ -44,12 +44,24 @@ Use this tool to generate a GitHub Actions workflow for your project. Fill in th
     </div>
 
     <div id="docker_options" style="margin-top: 1rem;">
-        <label for="docker_compose_file" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Docker Compose File</label>
-        <input type="text" id="docker_compose_file" name="docker_compose_file" value="docker-compose.yml" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
-        <label for="env_file" style="display: block; margin-top: 1rem; margin-bottom: 0.5rem; font-weight: bold;">Env File Path (Optional)</label>
-        <input type="text" id="env_file" name="env_file" placeholder="e.g., .env.prod" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
-        <label for="deploy_command" style="display: block; margin-top: 1rem; margin-bottom: 0.5rem; font-weight: bold;">Custom Deployment Command (Optional)</label>
-        <input type="text" id="deploy_command" name="deploy_command" placeholder="e.g., ./scripts/deploy.sh" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
+
+        <div style="margin-bottom: 1rem;">
+            <input type="checkbox" id="override_defaults" onchange="toggleDockerInputs()">
+            <label for="override_defaults" style="font-weight: bold; cursor: pointer;">Override Default Deployment Command</label>
+            <p style="font-size: 0.8rem; color: #666; margin-top: 0.2rem;">Check this to provide a custom script or command (hides standard file options).</p>
+        </div>
+
+        <div id="standard_docker_inputs">
+            <label for="docker_compose_file" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Docker Compose File</label>
+            <input type="text" id="docker_compose_file" name="docker_compose_file" value="docker-compose.yml" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
+            <label for="env_file" style="display: block; margin-top: 1rem; margin-bottom: 0.5rem; font-weight: bold;">Env File Path (Optional)</label>
+            <input type="text" id="env_file" name="env_file" placeholder="e.g., .env.prod" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
+        </div>
+
+        <div id="custom_command_input" style="display: none;">
+            <label for="deploy_command" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Custom Deployment Command</label>
+            <input type="text" id="deploy_command" name="deploy_command" placeholder="e.g., ./scripts/deploy.sh" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
+        </div>
     </div>
 
     <button type="button" onclick="generatePipeline()" style="margin-top: 1.5rem; padding: 0.75rem; background-color: #009485; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%;">Generate Workflow</button>
@@ -211,6 +223,20 @@ function toggleMonitoring() {
         dockerOptions.style.display = 'block';
     } else {
         dockerOptions.style.display = 'none';
+    }
+}
+
+function toggleDockerInputs() {
+    const override = document.getElementById('override_defaults').checked;
+    const standardInputs = document.getElementById('standard_docker_inputs');
+    const customInput = document.getElementById('custom_command_input');
+
+    if (override) {
+        standardInputs.style.display = 'none';
+        customInput.style.display = 'block';
+    } else {
+        standardInputs.style.display = 'block';
+        customInput.style.display = 'none';
     }
 }
 

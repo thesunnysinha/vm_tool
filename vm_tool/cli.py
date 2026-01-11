@@ -194,23 +194,31 @@ def main():
 
             docker_compose_file = "docker-compose.yml"
             env_file = None
-            if deployment_type == "docker":
-                docker_compose_file = (
-                    input(
-                        "Enter Docker Compose file name [docker-compose.yml]: "
-                    ).strip()
-                    or "docker-compose.yml"
-                )
-                env_file_input = input(
-                    "Enter Env file path (optional, press Enter to skip): "
-                ).strip()
-                if env_file_input:
-                    env_file = env_file_input
+            deploy_command = None
 
-                custom_cmd_input = input(
-                    "Enter custom deployment command (optional, overrides default): "
-                ).strip()
-                deploy_command = custom_cmd_input if custom_cmd_input else None
+            if deployment_type == "docker":
+                override_input = (
+                    input(
+                        "Override default deployment command? (e.g. run custom script instead of docker compose up) [y/N]: "
+                    )
+                    .strip()
+                    .lower()
+                )
+
+                if override_input in ("y", "yes"):
+                    deploy_command = input("Enter custom deployment command: ").strip()
+                else:
+                    docker_compose_file = (
+                        input(
+                            "Enter Docker Compose file name [docker-compose.yml]: "
+                        ).strip()
+                        or "docker-compose.yml"
+                    )
+                    env_file_input = input(
+                        "Enter Env file path (optional, press Enter to skip): "
+                    ).strip()
+                    if env_file_input:
+                        env_file = env_file_input
 
             context = {
                 "branch_name": branch,
