@@ -160,9 +160,16 @@ class SetupRunner:
 
     def __init__(self, config: SetupRunnerConfig):
         """Initializes the setup runner with the given configuration."""
+        self.config = config
         self.github_username = config.github_username
         self.github_token = config.github_token
         self.github_project_url = config.github_project_url
+        self.github_branch = config.github_branch
+        self.docker_compose_file_path = config.docker_compose_file_path
+        self.dockerhub_username = config.dockerhub_username
+        self.dockerhub_password = config.dockerhub_password
+        self.env_path = config.env_path
+        self.env_data = config.env_data
 
     def _get_git_commit(self) -> Optional[str]:
         """Get current git commit hash if in a git repository."""
@@ -180,15 +187,6 @@ class SetupRunner:
         except Exception:
             pass
         return None
-
-    def _setup_attributes(self):
-        """Setup runner attributes from config."""
-        self.github_branch = self.config.github_branch
-        self.docker_compose_file_path = self.config.docker_compose_file_path
-        self.dockerhub_username = self.config.dockerhub_username
-        self.dockerhub_password = self.config.dockerhub_password
-        self.env_path = self.config.env_path
-        self.env_data = self.config.env_data
 
     def _run_ansible_playbook(
         self, extravars: dict, inventory_file: str = "inventory.yml"
