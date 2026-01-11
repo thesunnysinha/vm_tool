@@ -189,6 +189,21 @@ def main():
         "--env-file", type=str, help="Path to env file (optional)"
     )
     docker_parser.add_argument(
+        "--webhook-url", type=str, help="Webhook URL for deployment notifications"
+    )
+    docker_parser.add_argument(
+        "--notify-email",
+        type=str,
+        action="append",
+        help="Email addresses for notifications (can be specified multiple times)",
+    )
+    docker_parser.add_argument(
+        "--smtp-host", type=str, default="localhost", help="SMTP server host"
+    )
+    docker_parser.add_argument(
+        "--smtp-port", type=int, default=587, help="SMTP server port"
+    )
+    docker_parser.add_argument(
         "--deploy-command",
         type=str,
         help="Custom deployment command (overrides default docker compose up)",
@@ -220,6 +235,22 @@ def main():
         "--dry-run",
         action="store_true",
         help="Preview deployment without executing (shows what would be deployed)",
+    )
+
+    # Completion command
+    completion_parser = subparsers.add_parser(
+        "completion", help="Generate shell completion scripts"
+    )
+    completion_parser.add_argument(
+        "shell",
+        type=str,
+        choices=["bash", "zsh", "fish"],
+        help="Shell type",
+    )
+    completion_parser.add_argument(
+        "--install",
+        action="store_true",
+        help="Install completion script",
     )
 
     # Pipeline Generator command
@@ -598,6 +629,29 @@ def main():
         except Exception as e:
             print(f"Error: {e}")
             sys.exit(1)
+
+    elif args.command == "completion":
+        from vm_tool.completion import print_completion, install_completion
+
+        if args.install:
+            try:
+                path = install_completion(args.shell)
+                print(f"✅ Completion installed: {path}")
+                print(f"\nTo activate, run:")
+                if args.shell == "bash":
+                    print(f"  source {path}")
+                elif args.shell == "zsh":
+                    print(
+                        f"  # Add to ~/.zshrc: fpath=({os.path.dirname(path)} $fpath)"
+                    )
+                    print(f"  # Then run: compinit")
+                elif args.shell == "fish":
+                    print(f"  # Restart your shell or run: source {path}")
+            except Exception as e:
+                print(f"❌ Failed to install completion: {e}")
+                sys.exit(1)
+        else:
+            print_completion(args.shell)
 
     elif args.command == "generate-pipeline":
         try:
