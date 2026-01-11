@@ -27,6 +27,8 @@ def test_generate_github_pipeline(mock_fs):
     assert "python-version: '3.12'" in content
     assert "flake8" not in content
     assert "pytest" not in content
+    assert "Check for Secrets" in content
+    assert "Setup SSH Key" in content
 
 
 def test_generate_github_pipeline_no_monitoring(mock_fs):

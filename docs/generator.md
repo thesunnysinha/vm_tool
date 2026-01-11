@@ -78,13 +78,23 @@ const TEMPLATE_TESTING = `
 `;
 
 const TEMPLATE_SSH = `
-    # Setup SSH Key for Ansible/SSH connections
-    # - name: Setup SSH Key
-    #   run: |
-    #     mkdir -p ~/.ssh
-    #     echo "\${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-    #     chmod 600 ~/.ssh/id_rsa
-    #     ssh-keyscan -H \${{ secrets.VM_HOST }} >> ~/.ssh/known_hosts
+    - name: Check for Secrets
+      run: |
+        if [ -z "\${{ secrets.SSH_PRIVATE_KEY }}" ]; then
+          echo "Error: SSH_PRIVATE_KEY secret is not set."
+          exit 1
+        fi
+        if [ -z "\${{ secrets.VM_HOST }}" ]; then
+          echo "Error: VM_HOST secret is not set."
+          exit 1
+        fi
+
+    - name: Setup SSH Key
+      run: |
+        mkdir -p ~/.ssh
+        echo "\${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H \${{ secrets.VM_HOST }} >> ~/.ssh/known_hosts
 `;
 
 const TEMPLATE_K8S = `
