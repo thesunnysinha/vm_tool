@@ -137,12 +137,22 @@ def main():
             )
             setup_monitoring = enable_monitoring in ("y", "yes")
 
+            dep_type_input = (
+                input("Deployment Type (kubernetes/docker) [kubernetes]: ")
+                .strip()
+                .lower()
+            )
+            deployment_type = (
+                "docker" if dep_type_input in ("docker", "d") else "kubernetes"
+            )
+
             context = {
                 "branch_name": branch,
                 "python_version": python_version,
                 "run_linting": run_linting,
                 "run_tests": run_tests,
                 "setup_monitoring": setup_monitoring,
+                "deployment_type": deployment_type,
             }
 
             generator = PipelineGenerator()

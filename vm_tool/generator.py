@@ -63,10 +63,21 @@ jobs:
         chmod 600 ~/.ssh/id_rsa
         ssh-keyscan -H ${{ secrets.VM_HOST }} >> ~/.ssh/known_hosts
 
+    {% if deployment_type == 'kubernetes' %}
     - name: Setup Kubernetes (K3s)
       run: |
         echo "Setting up K3s..."
         # vm_tool setup-k8s --inventory inventory.yml
+    {% endif %}
+
+    {% if deployment_type == 'docker' %}
+    - name: Deploy with Docker Compose
+      run: |
+        echo "Deploying with Docker Compose..."
+        # vm_tool deploy-docker --compose-file docker-compose.yml
+        # or direct ssh command:
+        # ssh user@host "cd /app && docker compose up -d"
+    {% endif %}
 
     {% if setup_monitoring %}
     - name: Setup Observability (Prometheus/Grafana)
@@ -89,6 +100,7 @@ jobs:
                 "run_linting": False,
                 "run_tests": False,
                 "setup_monitoring": False,
+                "deployment_type": "kubernetes",
             }
 
         from jinja2 import Environment, BaseLoader

@@ -69,6 +69,31 @@ def test_generate_github_pipeline_custom_context(mock_fs):
     assert "pytest" in content
     assert "vm_tool setup-monitoring" not in content
 
+    assert "vm_tool setup-monitoring" not in content
+
+
+def test_generate_github_pipeline_docker(mock_fs):
+    mock_open_func, mock_exists, mock_makedirs = mock_fs
+
+    context = {
+        "branch_name": "main",
+        "python_version": "3.12",
+        "run_linting": False,
+        "run_tests": False,
+        "setup_monitoring": False,
+        "deployment_type": "docker",
+    }
+
+    generator = PipelineGenerator()
+    generator.generate(platform="github", context=context)
+
+    handle = mock_open_func.return_value.__enter__.return_value
+    handle.write.assert_called_once()
+    content = handle.write.call_args[0][0]
+
+    assert "Deploy with Docker Compose" in content
+    assert "vm_tool setup-k8s" not in content
+
 
 def test_generate_unsupported_platform():
     generator = PipelineGenerator()

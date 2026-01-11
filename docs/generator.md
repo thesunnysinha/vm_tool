@@ -29,14 +29,31 @@ Use this tool to generate a GitHub Actions workflow for your project. Fill in th
         </div>
     </div>
 
-    <button type="button" onclick="generatePipeline()" style="margin-top: 1rem; padding: 0.75rem; background-color: #009485; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Generate Workflow</button>
+    <div style="margin-top: 1rem;">
+        <label style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Deployment Strategy</label>
+        <div style="display: flex; gap: 1rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <input type="radio" id="deploy_k8s" name="deployment_type" value="kubernetes" checked onchange="toggleMonitoring()">
+                <label for="deploy_k8s" style="cursor: pointer;">Kubernetes (K3s)</label>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <input type="radio" id="deploy_docker" name="deployment_type" value="docker" onchange="toggleMonitoring()">
+                <label for="deploy_docker" style="cursor: pointer;">Docker Compose</label>
+            </div>
+        </div>
+    </div>
+
+    <button type="button" onclick="generatePipeline()" style="margin-top: 1.5rem; padding: 0.75rem; background-color: #009485; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%;">Generate Workflow</button>
 
 </form>
 
 <div id="output" style="margin-top: 2rem; display: none;">
     <h3>Generated Workflow (.github/workflows/deploy.yml)</h3>
     <pre><code id="yamlOutput" class="language-yaml"></code></pre>
-    <button onclick="copyToClipboard()" style="margin-top: 0.5rem; padding: 0.5rem; background-color: #f0f0f0; border: 1px solid #ccc; border-radius: 4px; cursor: pointer;">Copy to Clipboard</button>
+    <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+        <button onclick="copyToClipboard()" style="padding: 0.5rem 1rem; background-color: #f0f0f0; border: 1px solid #ccc; border-radius: 4px; cursor: pointer;">Copy to Clipboard</button>
+        <button onclick="downloadYaml()" style="padding: 0.5rem 1rem; background-color: #009485; color: white; border: 1px solid #009485; border-radius: 4px; cursor: pointer;">Download .yml</button>
+    </div>
 </div>
 
 <script>
@@ -112,12 +129,22 @@ const TEMPLATE_MONITORING = `
         # vm_tool setup-monitoring --inventory inventory.yml
 `;
 
+const TEMPLATE_DOCKER = `
+    - name: Deploy with Docker Compose
+      run: |
+        echo "Deploying with Docker Compose..."
+        # vm_tool deploy-docker --compose-file docker-compose.yml
+        # or direct ssh command:
+        # ssh user@host "cd /app && docker compose up -d"
+`;
+
 function generatePipeline() {
     const branch = document.getElementById('branch_name').value;
     const pythonVersion = document.getElementById('python_version').value;
     const linkting = document.getElementById('run_linting').checked;
     const tests = document.getElementById('run_tests').checked;
     const monitoring = document.getElementById('setup_monitoring').checked;
+    const deployType = document.querySelector('input[name="deployment_type"]:checked').value;
 
     let output = TEMPLATE_BASE
         .replace(/\(\( branch_name \)\)/g, branch)
@@ -127,7 +154,12 @@ function generatePipeline() {
     if (tests) output += TEMPLATE_TESTING;
     
     output += TEMPLATE_SSH;
-    output += TEMPLATE_K8S;
+    
+    if (deployType === 'kubernetes') {
+        output += TEMPLATE_K8S;
+    } else {
+        output += TEMPLATE_DOCKER;
+    }
 
     if (monitoring) output += TEMPLATE_MONITORING;
 
@@ -145,5 +177,22 @@ function copyToClipboard() {
     navigator.clipboard.writeText(text).then(() => {
         alert('Copied to clipboard!');
     });
+}
+
+function downloadYaml() {
+    const text = document.getElementById('yamlOutput').textContent;
+    const blob = new Blob([text], { type: 'text/yaml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'deploy.yml';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function toggleMonitoring() {
+    // Optional: could enforce monitoring only for k8s if we wanted logic here
 }
 </script>
