@@ -29,34 +29,34 @@ def test_check_port_closed():
     assert health.check_port(1) is False
 
 
-@patch("vm_tool.health.requests")
-def test_check_http_success(mock_requests):
+@patch("requests.get")
+def test_check_http_success(mock_get):
     """Test successful HTTP check."""
     mock_response = MagicMock()
     mock_response.status_code = 200
-    mock_requests.get.return_value = mock_response
+    mock_get.return_value = mock_response
 
     health = HealthCheck("example.com")
     assert health.check_http("http://example.com/health") is True
 
 
-@patch("vm_tool.health.requests")
-def test_check_http_failure(mock_requests):
+@patch("requests.get")
+def test_check_http_failure(mock_get):
     """Test failed HTTP check."""
     mock_response = MagicMock()
     mock_response.status_code = 500
-    mock_requests.get.return_value = mock_response
+    mock_get.return_value = mock_response
 
     health = HealthCheck("example.com")
     assert health.check_http("http://example.com/health") is False
 
 
-@patch("vm_tool.health.requests")
-def test_check_http_custom_status(mock_requests):
+@patch("requests.get")
+def test_check_http_custom_status(mock_get):
     """Test HTTP check with custom expected status."""
     mock_response = MagicMock()
     mock_response.status_code = 404
-    mock_requests.get.return_value = mock_response
+    mock_get.return_value = mock_response
 
     health = HealthCheck("example.com")
     assert health.check_http("http://example.com/notfound", expected_status=404) is True
