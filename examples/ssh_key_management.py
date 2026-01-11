@@ -9,10 +9,10 @@ from vm_tool.ssh import SSHSetup
 
 def main():
     ssh_setup = SSHSetup(
-        hostname='your_vm_hostname',
-        username='your_vm_username',
-        password='your_vm_password',
-        email='your_email_for_ssh_key'
+        hostname="your_vm_hostname",
+        username="your_vm_username",
+        password="your_vm_password",
+        email="your_email_for_ssh_key",
     )
 
     ssh_setup.setup()

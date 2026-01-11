@@ -1,5 +1,6 @@
-import os
 import logging
+import os
+
 from python_terraform import Terraform
 
 logger = logging.getLogger(__name__)

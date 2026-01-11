@@ -1,6 +1,8 @@
-import pytest
-from unittest.mock import MagicMock, call, patch
 import os
+from unittest.mock import MagicMock, call, patch
+
+import pytest
+
 from vm_tool.ssh import SSHSetup
 
 

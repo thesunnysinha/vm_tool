@@ -1,6 +1,8 @@
-import pytest
 import os
-from unittest.mock import patch, mock_open
+from unittest.mock import mock_open, patch
+
+import pytest
+
 from vm_tool.generator import PipelineGenerator
 
 
@@ -32,7 +34,7 @@ def test_generate_github_pipeline(mock_fs):
     assert "python-version: '3.12'" in content
     assert "flake8" not in content
     assert "pytest" not in content
-    assert "Check for Secrets" in content
+    assert "Validate Secrets" in content
     assert "Setup SSH Key" in content
 
 
@@ -86,14 +88,10 @@ def test_generate_github_pipeline_docker(mock_fs):
         "run_linting": False,
         "run_tests": False,
         "setup_monitoring": False,
-        "run_tests": False,
-        "setup_monitoring": False,
-        "run_tests": False,
-        "setup_monitoring": False,
         "deployment_type": "docker",
         "docker_compose_file": "production.yml",
         "env_file": ".env.prod",
-        "deploy_command": "./deploy.sh",
+        "deploy_command": "./deploy.sh",  # Should be ignored
     }
 
     generator = PipelineGenerator()
@@ -106,6 +104,8 @@ def test_generate_github_pipeline_docker(mock_fs):
     assert "vm_tool deploy-docker" in content
     assert "--compose-file production.yml" in content
     assert "--env-file .env.prod" in content
+    # deploy-command should NOT be present for docker strategy
+    assert '--deploy-command "./deploy.sh"' not in content
     assert "--host ${{ secrets.VM_HOST }}" in content
     assert "SSH_USER" in content
     assert "vm_tool setup-k8s" not in content

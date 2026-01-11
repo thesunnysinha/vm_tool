@@ -1,10 +1,11 @@
-import sys
-import ansible_runner
-import os
-import yaml
-from pydantic import BaseModel, validator, model_validator, Field
-from typing import List, Optional
 import logging
+import os
+import sys
+from typing import List, Optional
+
+import ansible_runner
+import yaml
+from pydantic import BaseModel, Field, model_validator, validator
 
 # Configure logging
 logging.basicConfig(

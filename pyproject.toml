@@ -44,6 +44,8 @@ dev = [
     "pre-commit",
     "mkdocs-material",
     "mkdocstrings[python]",
+    "black",
+    "isort",
 ]
 
 [project.scripts]
@@ -64,3 +66,11 @@ upload_to_pypi = true
 upload_to_release = true
 build_command = "python setup.py sdist bdist_wheel"
 
+[tool.black]
+line-length = 88
+target-version = ['py39', 'py310', 'py311', 'py312']
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3

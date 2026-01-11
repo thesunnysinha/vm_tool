@@ -1,5 +1,6 @@
-from setuptools import setup, find_packages
 import os
+
+from setuptools import find_packages, setup
 
 # Read the contents of README.md
 readme_path = os.path.join(os.path.dirname(__file__), "README.md")
@@ -28,6 +29,8 @@ setup(
             "pre-commit",
             "mkdocs-material",
             "mkdocstrings[python]",
+            "black",
+            "isort",
         ],
     },
     entry_points={

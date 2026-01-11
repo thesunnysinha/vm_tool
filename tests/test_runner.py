@@ -1,5 +1,7 @@
-import pytest
 import os
+
+import pytest
+
 from vm_tool.runner import SetupRunner, SetupRunnerConfig
 
 

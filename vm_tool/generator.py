@@ -1,5 +1,5 @@
-import os
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -118,7 +118,7 @@ jobs:
                 "deploy_command": None,
             }
 
-        from jinja2 import Environment, BaseLoader
+        from jinja2 import BaseLoader, Environment
 
         env = Environment(
             loader=BaseLoader(),
