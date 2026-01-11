@@ -43,6 +43,11 @@ Use this tool to generate a GitHub Actions workflow for your project. Fill in th
         </div>
     </div>
 
+    <div id="docker_options" style="margin-top: 1rem;">
+        <label for="docker_compose_file" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Docker Compose File</label>
+        <input type="text" id="docker_compose_file" name="docker_compose_file" value="docker-compose.yml" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
+    </div>
+
     <button type="button" onclick="generatePipeline()" style="margin-top: 1.5rem; padding: 0.75rem; background-color: #009485; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%;">Generate Workflow</button>
 
 </form>
@@ -137,7 +142,7 @@ const TEMPLATE_DOCKER = `
     - name: Deploy with Docker Compose
       run: |
         echo "Deploying with Docker Compose..."
-        vm_tool deploy-docker --compose-file docker-compose.yml --host \${{ secrets.VM_HOST }} --user \${{ secrets.SSH_USER }}
+        vm_tool deploy-docker --compose-file (( docker_compose_file )) --host \${{ secrets.VM_HOST }} --user \${{ secrets.SSH_USER }}
 `;
 
 function generatePipeline() {
@@ -147,6 +152,7 @@ function generatePipeline() {
     const tests = document.getElementById('run_tests').checked;
     const monitoring = document.getElementById('setup_monitoring').checked;
     const deployType = document.querySelector('input[name="deployment_type"]:checked').value;
+    const composeFile = document.getElementById('docker_compose_file').value;
 
     let output = TEMPLATE_BASE
         .replace(/\(\( branch_name \)\)/g, branch)
@@ -160,7 +166,7 @@ function generatePipeline() {
     if (deployType === 'kubernetes') {
         output += TEMPLATE_K8S;
     } else {
-        output += TEMPLATE_DOCKER;
+        output += TEMPLATE_DOCKER.replace(/\(\( docker_compose_file \)\)/g, composeFile);
     }
 
     if (monitoring) output += TEMPLATE_MONITORING;
@@ -171,6 +177,17 @@ function generatePipeline() {
     // Trigger syntax highlighting if available (MkDocs dependent)
     if (window.hljs) {
         hljs.highlightElement(document.getElementById('yamlOutput'));
+    }
+}
+// ... copy/download functions ...
+
+function toggleMonitoring() {
+    const deployType = document.querySelector('input[name="deployment_type"]:checked').value;
+    const dockerOptions = document.getElementById('docker_options');
+    if (deployType === 'docker') {
+        dockerOptions.style.display = 'block';
+    } else {
+        dockerOptions.style.display = 'none';
     }
 }
 

@@ -291,18 +291,59 @@ class SetupRunner:
         logger.info("Monitoring setup completed.")
 
     def run_docker_deploy(
-        self, compose_file="docker-compose.yml", inventory_file="inventory.yml"
+        self,
+        compose_file="docker-compose.yml",
+        inventory_file="inventory.yml",
+        host: str = None,
+        user: str = None,
     ):
         """Runs the Docker Compose deployment."""
-        logger.info(f"Starting Docker deployment using {compose_file}...")
+
+        target_inventory = inventory_file
+
+        # Generate dynamic inventory if host is provided
+        if host:
+            logger.info(f"Generating dynamic inventory for host: {host}")
+            inventory_content = {
+                "all": {
+                    "hosts": {
+                        "target_host": {
+                            "ansible_host": host,
+                            "ansible_connection": "ssh",
+                            "ansible_ssh_common_args": "-o StrictHostKeyChecking=no",
+                        }
+                    },
+                    "vars": {"ansible_python_interpreter": "/usr/bin/python3"},
+                }
+            }
+            if user:
+                inventory_content["all"]["hosts"]["target_host"]["ansible_user"] = user
+
+            # Use a temporary file or override inventory.yml locally
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            generated_inventory_path = os.path.join(
+                current_dir, "vm_setup", "generated_inventory.yml"
+            )
+
+            with open(generated_inventory_path, "w") as f:
+                yaml.dump(inventory_content, f)
+
+            target_inventory = "generated_inventory.yml"
+
+        logger.info(
+            f"Starting Docker deployment using {compose_file} on {target_inventory}..."
+        )
+
         extravars = {
             "ansible_python_interpreter": "/usr/bin/python3",
             "DOCKER_COMPOSE_FILE_PATH": compose_file,
             "GITHUB_USERNAME": self.github_username,
             "GITHUB_TOKEN": self.github_token,
             "GITHUB_PROJECT_URL": self.github_project_url,
+            "DEPLOY_MODE": "push",
+            "SOURCE_PATH": os.getcwd(),  # Current working directory where vm_tool is run
         }
         # reusing main.yml or a specific deploy playbook.
         # Assuming main.yml handles docker deploy if DOCKER_COMPOSE_FILE_PATH is set.
-        self._run_ansible_playbook(extravars, "vm_setup/main.yml")
+        self._run_ansible_playbook(extravars, target_inventory)
         logger.info("Docker deployment completed.")

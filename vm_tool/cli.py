@@ -62,6 +62,10 @@ def main():
         default="docker-compose.yml",
         help="Path to docker-compose.yml",
     )
+    docker_parser.add_argument(
+        "--host", type=str, help="Target host IP/domain (generates dynamic inventory)"
+    )
+    docker_parser.add_argument("--user", type=str, help="SSH username for target host")
 
     # Pipeline Generator command
     pipe_parser = subparsers.add_parser(
@@ -130,7 +134,10 @@ def main():
             config = SetupRunnerConfig(github_project_url="dummy")
             runner = SetupRunner(config)
             runner.run_docker_deploy(
-                compose_file=args.compose_file, inventory_file=args.inventory
+                compose_file=args.compose_file,
+                inventory_file=args.inventory,
+                host=args.host,
+                user=args.user,
             )
         except Exception as e:
             print(f"Error: {e}")
@@ -175,6 +182,15 @@ def main():
                 else "docker"
             )
 
+            docker_compose_file = "docker-compose.yml"
+            if deployment_type == "docker":
+                docker_compose_file = (
+                    input(
+                        "Enter Docker Compose file name [docker-compose.yml]: "
+                    ).strip()
+                    or "docker-compose.yml"
+                )
+
             context = {
                 "branch_name": branch,
                 "python_version": python_version,
@@ -182,6 +198,7 @@ def main():
                 "run_tests": run_tests,
                 "setup_monitoring": setup_monitoring,
                 "deployment_type": deployment_type,
+                "docker_compose_file": docker_compose_file,
             }
 
             generator = PipelineGenerator()
