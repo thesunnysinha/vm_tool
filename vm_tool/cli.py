@@ -151,6 +151,11 @@ def main():
         type=str,
         help="HTTP URL to check after deployment (e.g., 'http://localhost:8000/health')",
     )
+    docker_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Preview deployment without executing (shows what would be deployed)",
+    )
 
     # Pipeline Generator command
     pipe_parser = subparsers.add_parser(
@@ -363,6 +368,33 @@ def main():
             compose_file = args.compose_file or profile_data.get(
                 "compose_file", "docker-compose.yml"
             )
+
+            # Dry-run mode: show what would be deployed
+            if args.dry_run:
+                print("\n🔍 DRY-RUN MODE - No changes will be made\n")
+                print(f"📋 Deployment Plan:")
+                print(f"   Target Host: {host or 'from inventory'}")
+                print(f"   SSH User: {user or 'from inventory'}")
+                print(f"   Compose File: {compose_file}")
+                print(f"   Inventory: {args.inventory}")
+                if args.env_file:
+                    print(f"   Env File: {args.env_file}")
+                if args.deploy_command:
+                    print(f"   Custom Command: {args.deploy_command}")
+
+                # Show compose file contents
+                import os
+
+                if os.path.exists(compose_file):
+                    print(f"\n📄 Compose File Contents ({compose_file}):")
+                    with open(compose_file, "r") as f:
+                        for i, line in enumerate(f, 1):
+                            print(f"   {i:3d} | {line.rstrip()}")
+                else:
+                    print(f"\n⚠️  Compose file not found: {compose_file}")
+
+                print(f"\n✅ Dry-run complete. Use without --dry-run to deploy.")
+                sys.exit(0)
 
             # For deployment, we might need github creds if the playbook pulls code
             # But for now we use dummy or env vars
