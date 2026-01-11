@@ -67,6 +67,25 @@ def main():
     )
     delete_profile_parser.add_argument("name", type=str, help="Profile name")
 
+    # History command
+    history_parser = subparsers.add_parser("history", help="Show deployment history")
+    history_parser.add_argument("--host", type=str, help="Filter by host")
+    history_parser.add_argument(
+        "--limit", type=int, default=10, help="Number of deployments to show"
+    )
+
+    # Rollback command
+    rollback_parser = subparsers.add_parser(
+        "rollback", help="Rollback to previous deployment"
+    )
+    rollback_parser.add_argument("--host", type=str, required=True, help="Target host")
+    rollback_parser.add_argument(
+        "--to", type=str, help="Deployment ID to rollback to (default: previous)"
+    )
+    rollback_parser.add_argument(
+        "--inventory", type=str, default="inventory.yml", help="Inventory file"
+    )
+
     # K8s Setup command
     k8s_parser = subparsers.add_parser(
         "setup-k8s", help="Install K3s Kubernetes cluster"
@@ -223,6 +242,67 @@ def main():
 
         else:
             config_parser.print_help()
+
+    elif args.command == "history":
+        from vm_tool.history import DeploymentHistory
+
+        history = DeploymentHistory()
+        deployments = history.get_history(host=args.host, limit=args.limit)
+
+        if not deployments:
+            print("No deployment history found")
+        else:
+            print(
+                f"\n📜 Deployment History (showing {len(deployments)} deployments):\n"
+            )
+            for dep in deployments:
+                status_icon = "✅" if dep.get("status") == "success" else "❌"
+                print(f"{status_icon} {dep['id']} - {dep['timestamp']}")
+                print(f"   Host: {dep['host']}")
+                print(f"   Service: {dep.get('service_name', 'default')}")
+                print(f"   Compose: {dep['compose_file']}")
+                if dep.get("git_commit"):
+                    print(f"   Git: {dep['git_commit'][:8]}")
+                if dep.get("error"):
+                    print(f"   Error: {dep['error']}")
+                print()
+
+    elif args.command == "rollback":
+        from vm_tool.history import DeploymentHistory
+        from vm_tool.runner import SetupRunner, SetupRunnerConfig
+
+        history = DeploymentHistory()
+        rollback_info = history.get_rollback_info(args.host, args.to)
+
+        if not rollback_info:
+            print(f"❌ No deployment found to rollback to")
+            sys.exit(1)
+
+        print(f"\n🔄 Rolling back to deployment: {rollback_info['id']}")
+        print(f"   Timestamp: {rollback_info['timestamp']}")
+        print(f"   Compose: {rollback_info['compose_file']}")
+        if rollback_info.get("git_commit"):
+            print(f"   Git commit: {rollback_info['git_commit'][:8]}")
+
+        confirm = input("\nProceed with rollback? (yes/no): ").strip().lower()
+        if confirm != "yes":
+            print("❌ Rollback cancelled")
+            sys.exit(0)
+
+        try:
+            config = SetupRunnerConfig(github_project_url="dummy")
+            runner = SetupRunner(config)
+            runner.run_docker_deploy(
+                compose_file=rollback_info["compose_file"],
+                inventory_file=args.inventory,
+                host=args.host,
+                user=None,  # Will use inventory
+                force=True,  # Force redeployment
+            )
+            print("\n✅ Rollback completed successfully")
+        except Exception as e:
+            print(f"\n❌ Rollback failed: {e}")
+            sys.exit(1)
 
     elif args.command == "setup-k8s":
         try:

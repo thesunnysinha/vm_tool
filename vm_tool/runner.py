@@ -163,6 +163,23 @@ class SetupRunner:
         self.github_username = config.github_username
         self.github_token = config.github_token
         self.github_project_url = config.github_project_url
+
+    def _get_git_commit(self) -> Optional[str]:
+        """Get current git commit hash if in a git repository."""
+        import subprocess
+
+        try:
+            result = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.returncode == 0:
+                return result.stdout.strip()
+        except Exception:
+            pass
+        return None
         self.github_branch = config.github_branch
         self.docker_compose_file_path = config.docker_compose_file_path
         self.dockerhub_username = config.dockerhub_username
@@ -395,6 +412,21 @@ class SetupRunner:
                         host, compose_file, compose_hash, service_name
                     )
                     logger.info(f"✅ Deployment state recorded for {host}")
+
+                    # Record in history
+                    from vm_tool.history import DeploymentHistory
+
+                    history = DeploymentHistory()
+                    git_commit = self._get_git_commit()
+                    deployment_id = history.record_deployment(
+                        host=host,
+                        compose_file=compose_file,
+                        compose_hash=compose_hash,
+                        git_commit=git_commit,
+                        service_name=service_name,
+                        status="success",
+                    )
+                    logger.info(f"📝 Deployment recorded in history: {deployment_id}")
             else:
                 error_msg = f"Deployment failed with status: {r.status}"
                 logger.error(error_msg)
