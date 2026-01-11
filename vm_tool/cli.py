@@ -1,8 +1,6 @@
 import argparse
 import sys
 
-from vm_tool.provision import Provisioner
-
 
 def main():
     parser = argparse.ArgumentParser(
@@ -11,24 +9,6 @@ def main():
     parser.add_argument("--version", action="version", version="1.0.30")
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
-
-    # Provision command
-    provision_parser = subparsers.add_parser(
-        "provision", help="Provision infrastructure using Terraform"
-    )
-    provision_parser.add_argument(
-        "--provider", type=str, required=True, help="Cloud provider (e.g., aws)"
-    )
-    provision_parser.add_argument(
-        "--action",
-        type=str,
-        choices=["apply", "destroy"],
-        default="apply",
-        help="Action to perform",
-    )
-    provision_parser.add_argument(
-        "--vars", type=str, nargs="*", help="Terraform variables (key=value)"
-    )
 
     # K8s Setup command
     k8s_parser = subparsers.add_parser(
@@ -90,27 +70,9 @@ def main():
 
     args = parser.parse_args()
 
-    if args.command == "provision":
-        try:
-            provisioner = Provisioner(args.provider)
-            provisioner.init()
+    args = parser.parse_args()
 
-            tf_vars = {}
-            if args.vars:
-                for v in args.vars:
-                    key, value = v.split("=")
-                    tf_vars[key] = value
-
-            if args.action == "apply":
-                provisioner.apply(vars=tf_vars)
-            elif args.action == "destroy":
-                provisioner.destroy(vars=tf_vars)
-
-        except Exception as e:
-            print(f"Error: {e}")
-            sys.exit(1)
-
-    elif args.command == "setup-k8s":
+    if args.command == "setup-k8s":
         try:
             # We need a dummy config to init SetupRunner, or refactor SetupRunner to be more flexible.
             # For now, we pass minimal required args.

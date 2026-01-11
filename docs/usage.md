@@ -14,26 +14,6 @@ pip install vm-tool
 
 Provision cloud resources using Terraform.
 
-### Command
-
-```bash
-vm_tool provision --provider <PROVIDER> --action <ACTION> [--vars KEY=VALUE ...]
-```
-
-### Examples
-
-**Apply AWS Configuration:**
-
-```bash
-vm_tool provision --provider aws --action apply --vars region=us-west-2 instance_type=t3.medium
-```
-
-**Destroy Infrastructure:**
-
-```bash
-vm_tool provision --provider aws --action destroy
-```
-
 ## ☸️ Kubernetes Setup (K3s)
 
 Deploy a lightweight K3s cluster.
