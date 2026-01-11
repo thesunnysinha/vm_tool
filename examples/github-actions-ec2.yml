@@ -17,6 +17,90 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Validate Required Secrets
+        run: |
+          echo "🔐 Validating GitHub Secrets..."
+          MISSING_SECRETS=()
+          
+          # Check EC2_HOST
+          if [ -z "${{ secrets.EC2_HOST }}" ]; then
+            MISSING_SECRETS+=("EC2_HOST")
+          fi
+          
+          # Check EC2_USER
+          if [ -z "${{ secrets.EC2_USER }}" ]; then
+            MISSING_SECRETS+=("EC2_USER")
+          fi
+          
+          # Check EC2_SSH_KEY
+          if [ -z "${{ secrets.EC2_SSH_KEY }}" ]; then
+            MISSING_SECRETS+=("EC2_SSH_KEY")
+          fi
+          
+          # If any secrets are missing, show detailed instructions
+          if [ ${#MISSING_SECRETS[@]} -ne 0 ]; then
+            echo ""
+            echo "❌ ERROR: Missing required GitHub Secrets!"
+            echo ""
+            echo "Missing secrets: ${MISSING_SECRETS[*]}"
+            echo ""
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "📝 How to add GitHub Secrets:"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo ""
+            echo "1. Go to your GitHub repository"
+            echo "2. Click: Settings → Secrets and variables → Actions"
+            echo "3. Click: New repository secret"
+            echo "4. Add each secret:"
+            echo ""
+            
+            if [[ " ${MISSING_SECRETS[*]} " =~ " EC2_HOST " ]]; then
+              echo "   📍 EC2_HOST"
+              echo "      Value: Your EC2 instance IP address"
+              echo "      Example: 54.123.45.67"
+              echo ""
+            fi
+            
+            if [[ " ${MISSING_SECRETS[*]} " =~ " EC2_USER " ]]; then
+              echo "   👤 EC2_USER"
+              echo "      Value: SSH username for your EC2 instance"
+              echo "      Example: ubuntu (for Ubuntu) or ec2-user (for Amazon Linux)"
+              echo ""
+            fi
+            
+            if [[ " ${MISSING_SECRETS[*]} " =~ " EC2_SSH_KEY " ]]; then
+              echo "   🔑 EC2_SSH_KEY"
+              echo "      Value: Your SSH private key"
+              echo ""
+              echo "      To get your SSH private key, run on your LOCAL machine:"
+              echo "      $ cat ~/.ssh/id_rsa"
+              echo ""
+              echo "      OR if you use ed25519:"
+              echo "      $ cat ~/.ssh/id_ed25519"
+              echo ""
+              echo "      Copy the ENTIRE output (including BEGIN and END lines)"
+              echo ""
+              echo "      Don't have an SSH key? Generate one:"
+              echo "      $ ssh-keygen -t ed25519 -C 'github-actions'"
+              echo "      $ cat ~/.ssh/id_ed25519.pub  # Add to EC2 ~/.ssh/authorized_keys"
+              echo "      $ cat ~/.ssh/id_ed25519      # Add to GitHub Secrets"
+              echo ""
+            fi
+            
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "📚 For detailed instructions, see:"
+            echo "   - docs/ec2-github-actions-guide.md"
+            echo "   - docs/ssh-key-setup.md"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo ""
+            exit 1
+          fi
+          
+          echo "✅ All required secrets are configured"
+          echo "   - EC2_HOST: ${{ secrets.EC2_HOST }}"
+          echo "   - EC2_USER: ${{ secrets.EC2_USER }}"
+          echo "   - EC2_SSH_KEY: ✓ (configured)"
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
