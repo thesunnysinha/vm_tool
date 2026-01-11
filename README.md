@@ -9,8 +9,13 @@ A modern, user-friendly solution for automating and managing virtual machine (VM
 ---
 
 ## ✨ Features
+
 - Automated VM setup with Docker & Docker Compose
 - Cloud VM provisioning via SSH
+- **Infrastructure Provisioning**: Terraform integration for cloud providers (AWS, etc.)
+- **Kubernetes Ready**: One-click K3s cluster setup
+- **Observability**: Instant Prometheus & Grafana deployment
+- **CI/CD Pipelines**: Auto-generate GitHub Actions workflows
 - SSH key management and configuration
 - Simple Python API for integration
 - One-command version check: `vm_tool --version`
@@ -18,6 +23,7 @@ A modern, user-friendly solution for automating and managing virtual machine (VM
 ---
 
 ## ⚡️ Installation
+
 Install the latest version from PyPI:
 
 ```bash
@@ -28,7 +34,44 @@ pip install vm-tool
 
 ## 🛠️ Usage Examples
 
-### Automated Local VM Setup
+### 🚀 Universal Deployment (CLI)
+
+#### 1. Generate CI/CD Pipeline
+
+Bootstrap your project with a complete GitHub Actions workflow:
+
+```bash
+vm_tool generate-pipeline
+```
+
+#### 2. Provision Infrastructure
+
+Provision cloud resources using Terraform (requires Terraform installed):
+
+```bash
+vm_tool provision --provider aws --action apply --vars region=us-east-1
+```
+
+#### 3. Setup Kubernetes (K3s)
+
+Deploy a lightweight Kubernetes cluster to your servers:
+
+```bash
+vm_tool setup-k8s --inventory inventory.yml
+```
+
+#### 4. Setup Observability
+
+Deploy Prometheus and Grafana for instant monitoring:
+
+```bash
+vm_tool setup-monitoring --inventory inventory.yml
+```
+
+### 🐍 Python API Usage
+
+#### Automated Local VM Setup
+
 ```python
 from vm_tool.runner import SetupRunner, SetupRunnerConfig
 
@@ -47,6 +90,7 @@ runner.run_setup()
 ```
 
 ### Cloud VM Setup (via SSH)
+
 ```python
 from vm_tool.runner import SetupRunner, SetupRunnerConfig, SSHConfig
 
@@ -75,6 +119,7 @@ runner.run_cloud_setup(ssh_configs)
 ```
 
 ### SSH Key Management
+
 ```python
 from vm_tool.ssh import SSHSetup
 
@@ -101,6 +146,7 @@ vm_tool --version
 ---
 
 ## ⚙️ Configuration Options
+
 - `github_username`: GitHub username (for private repos)
 - `github_token`: GitHub token (for private repos)
 - `github_project_url`: GitHub repository URL
@@ -112,6 +158,7 @@ vm_tool --version
 ---
 
 ## 📚 Learn More
+
 See the [PyPI page](https://pypi.org/project/vm-tool/) for more details, or visit the [GitHub repository](https://github.com/thesunnysinha/vm_tool) for full documentation, issues, and contributions.
 
 ---

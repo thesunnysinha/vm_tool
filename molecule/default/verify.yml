@@ -1,0 +1,7 @@
+---
+- name: Verify
+  hosts: all
+  gather_facts: false
+  tasks:
+  - name: Check if setup ran successfully
+    command: echo "Verification step would go here"

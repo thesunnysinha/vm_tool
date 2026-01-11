@@ -1,0 +1,7 @@
+---
+- name: Converge
+  hosts: all
+  tasks:
+    - name: "Include vm_tool.vm_setup"
+      include_role:
+        name: "vm_tool.vm_setup"

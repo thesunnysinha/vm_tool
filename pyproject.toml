@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[tool.semantic_release]
+version_variable = [
+    "setup.py:version"
+]
+branch = "main"
+upload_to_pypi = true
+upload_to_release = true
+build_command = "python setup.py sdist bdist_wheel"

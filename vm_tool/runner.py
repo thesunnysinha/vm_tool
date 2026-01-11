@@ -4,11 +4,19 @@ import os
 import yaml
 from pydantic import BaseModel, validator, model_validator, Field
 from typing import List, Optional
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
+
 
 class SetupRunnerConfig(BaseModel):
     """
     Configuration model for setting up the runner.
-    
+
     Attributes:
         github_username (Optional[str]): GitHub username for authentication.
         github_token (Optional[str]): GitHub token for authentication.
@@ -28,64 +36,79 @@ class SetupRunnerConfig(BaseModel):
         default=None, description="GitHub token for authentication (optional)"
     )
     github_project_url: str = Field(..., description="URL of the GitHub repository")
-    github_branch: str = Field(default='main', description="GitHub branch to use (default: 'main')")
+    github_branch: str = Field(
+        default="main", description="GitHub branch to use (default: 'main')"
+    )
     docker_compose_file_path: str = Field(
-        default='docker-compose.yml', description="Path to the Docker Compose file (default: 'docker-compose.yml')"
+        default="docker-compose.yml",
+        description="Path to the Docker Compose file (default: 'docker-compose.yml')",
     )
     dockerhub_username: Optional[str] = Field(
         default=None, description="DockerHub username (optional)"
     )
     dockerhub_password: Optional[str] = Field(
-        default=None, description="DockerHub password (required if username is provided)"
+        default=None,
+        description="DockerHub password (required if username is provided)",
     )
     env_path: Optional[str] = Field(
-        default=None, description="Path where the environment file should be created (optional)"
+        default=None,
+        description="Path where the environment file should be created (optional)",
     )
     env_data: Optional[dict] = Field(
-        default=None, description="Environment data to dump into the file (optional, should be a dict)"
+        default=None,
+        description="Environment data to dump into the file (optional, should be a dict)",
     )
 
-    @validator('env_path', always=True)
+    @validator("env_path", always=True)
     def check_env_path_with_env_data(cls, v, values):
         """If env_data is provided, env_path must also be provided."""
-        if values.get('env_data') is not None and not v:
+        if values.get("env_data") is not None and not v:
             raise ValueError("env_path must be provided if env_data is specified")
         return v
 
-    @validator('env_data', always=True)
+    @validator("env_data", always=True)
     def check_env_data_with_env_path(cls, v, values):
         """If env_path is provided, env_data must also be provided."""
-        if values.get('env_path') is not None and v is None:
+        if values.get("env_path") is not None and v is None:
             raise ValueError("env_data must be provided if env_path is specified")
         return v
 
-    @validator('dockerhub_password', always=True)
+    @validator("dockerhub_password", always=True)
     def check_dockerhub_password(cls, v, values):
         """Ensures that a password is provided if a DockerHub username is set."""
-        if values.get('dockerhub_username') and not v:
-            raise ValueError("DockerHub password must be provided if DockerHub username is specified")
+        if values.get("dockerhub_username") and not v:
+            raise ValueError(
+                "DockerHub password must be provided if DockerHub username is specified"
+            )
         return v
 
-    @validator('dockerhub_username', always=True)
+    @validator("dockerhub_username", always=True)
     def check_dockerhub_username(cls, v, values):
         """Ensures that a username is provided if a DockerHub password is set."""
-        if values.get('dockerhub_password') and not v:
-            raise ValueError("DockerHub username must be provided if DockerHub password is specified")
+        if values.get("dockerhub_password") and not v:
+            raise ValueError(
+                "DockerHub username must be provided if DockerHub password is specified"
+            )
         return v
 
-    @validator('github_token', always=True)
+    @validator("github_token", always=True)
     def check_github_token(cls, v, values):
         """Ensures that a GitHub token is provided if a GitHub username is set."""
-        if values.get('github_username') and not v:
-            raise ValueError("GitHub token must be provided if GitHub username is specified")
+        if values.get("github_username") and not v:
+            raise ValueError(
+                "GitHub token must be provided if GitHub username is specified"
+            )
         return v
 
-    @validator('github_username', always=True)
+    @validator("github_username", always=True)
     def check_github_username(cls, v, values):
         """Ensures that a GitHub username is provided if a GitHub token is set."""
-        if values.get('github_token') and not v:
-            raise ValueError("GitHub username must be provided if GitHub token is specified")
+        if values.get("github_token") and not v:
+            raise ValueError(
+                "GitHub username must be provided if GitHub token is specified"
+            )
         return v
+
 
 class SSHConfig(BaseModel):
     """
@@ -104,17 +127,21 @@ class SSHConfig(BaseModel):
         default=None, description="SSH password (optional if identity file is provided)"
     )
     ssh_identity_file: Optional[str] = Field(
-        default=None, description="Path to SSH private key file (optional if password is provided)"
+        default=None,
+        description="Path to SSH private key file (optional if password is provided)",
     )
 
     @model_validator(mode="before")
     def validate_authentication(cls, values):
         """Ensures that either an SSH password or identity file is provided for authentication."""
-        password = values.get('ssh_password')
-        identity_file = values.get('ssh_identity_file')
+        password = values.get("ssh_password")
+        identity_file = values.get("ssh_identity_file")
         if not password and not identity_file:
-            raise ValueError("Either ssh_password or ssh_identity_file must be provided.")
+            raise ValueError(
+                "Either ssh_password or ssh_identity_file must be provided."
+            )
         return values
+
 
 class SetupRunner:
     """
@@ -145,36 +172,48 @@ class SetupRunner:
     def _run_ansible_playbook(self, extravars, inventory_file):
         """Executes an Ansible playbook with the given variables and inventory."""
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        venv_dir = os.path.join(sys.prefix, 'ansible_runner_data')
+        venv_dir = os.path.join(sys.prefix, "ansible_runner_data")
         os.makedirs(venv_dir, exist_ok=True)
 
-        playbook_path = os.path.join(current_dir, 'vm_setup', 'main.yml')
-        inventory_path = os.path.join(current_dir, 'vm_setup', inventory_file)
+        playbook_path = os.path.join(current_dir, "vm_setup", "main.yml")
+        inventory_path = os.path.join(current_dir, "vm_setup", inventory_file)
 
         try:
             r = ansible_runner.run(
                 private_data_dir=venv_dir,
                 playbook=playbook_path,
                 inventory=inventory_path,
-                extravars=extravars
+                extravars=extravars,
             )
 
             if r.rc != 0:
-                raise RuntimeError(f"Ansible playbook execution failed with return code {r.rc}: {r.stdout}")
+                logger.error(
+                    f"Ansible playbook execution failed with return code {r.rc}: {r.stdout}"
+                )
+                raise RuntimeError(
+                    f"Ansible playbook execution failed with return code {r.rc}: {r.stdout}"
+                )
+
+            logger.info("Ansible playbook executed successfully.")
 
         except Exception as e:
-            raise RuntimeError(f"An error occurred while running the Ansible playbook: {str(e)}")
+            logger.error(
+                f"An error occurred while running the Ansible playbook: {str(e)}"
+            )
+            raise RuntimeError(
+                f"An error occurred while running the Ansible playbook: {str(e)}"
+            )
 
     def run_setup(self):
         """Runs the setup process using Ansible."""
         extravars = {
-            'GITHUB_USERNAME': self.github_username,
-            'GITHUB_TOKEN': self.github_token,
-            'GITHUB_PROJECT_URL': self.github_project_url,
-            'GITHUB_BRANCH': self.github_branch,
-            'DOCKERHUB_USERNAME': self.dockerhub_username,
-            'DOCKERHUB_PASSWORD': self.dockerhub_password,
-            'EXECUTION_TYPE': "normal"
+            "GITHUB_USERNAME": self.github_username,
+            "GITHUB_TOKEN": self.github_token,
+            "GITHUB_PROJECT_URL": self.github_project_url,
+            "GITHUB_BRANCH": self.github_branch,
+            "DOCKERHUB_USERNAME": self.dockerhub_username,
+            "DOCKERHUB_PASSWORD": self.dockerhub_password,
+            "EXECUTION_TYPE": "normal",
         }
 
         if self.docker_compose_file_path:
@@ -183,45 +222,49 @@ class SetupRunner:
             extravars["ENV_PATH"] = self.env_path
             extravars["ENV_DATA"] = self.env_data
 
-        self._run_ansible_playbook(extravars, 'inventory.yml')
+        self._run_ansible_playbook(extravars, "inventory.yml")
 
     def run_cloud_setup(self, ssh_configs: List[SSHConfig]):
         """Runs the cloud setup using Ansible with dynamic inventory generation."""
-        inventory_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'vm_setup', 'dynamic_inventory.yml')
+        inventory_file_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "vm_setup",
+            "dynamic_inventory.yml",
+        )
 
         inventory_content = {
-            'all': {
-                'hosts': {},
-                'vars': {
-                    'ansible_python_interpreter': '/usr/bin/python3'
-                }
+            "all": {
+                "hosts": {},
+                "vars": {"ansible_python_interpreter": "/usr/bin/python3"},
             }
         }
 
         for i, ssh_config in enumerate(ssh_configs):
-            host_key = f'cloud_host_{i}'
+            host_key = f"cloud_host_{i}"
             host_entry = {
-                'ansible_host': ssh_config.ssh_hostname,
-                'ansible_user': ssh_config.ssh_username,
+                "ansible_host": ssh_config.ssh_hostname,
+                "ansible_user": ssh_config.ssh_username,
             }
             if ssh_config.ssh_identity_file:
-                host_entry['ansible_ssh_private_key_file'] = ssh_config.ssh_identity_file
+                host_entry["ansible_ssh_private_key_file"] = (
+                    ssh_config.ssh_identity_file
+                )
             elif ssh_config.ssh_password:
-                host_entry['ansible_ssh_pass'] = ssh_config.ssh_password
+                host_entry["ansible_ssh_pass"] = ssh_config.ssh_password
 
-            inventory_content['all']['hosts'][host_key] = host_entry
+            inventory_content["all"]["hosts"][host_key] = host_entry
 
-        with open(inventory_file_path, 'w') as inventory_file:
+        with open(inventory_file_path, "w") as inventory_file:
             yaml.dump(inventory_content, inventory_file)
 
         extravars = {
-            'GITHUB_USERNAME': self.github_username,
-            'GITHUB_TOKEN': self.github_token,
-            'GITHUB_PROJECT_URL': self.github_project_url,
-            'GITHUB_BRANCH': self.github_branch,
-            'DOCKERHUB_USERNAME': self.dockerhub_username,
-            'DOCKERHUB_PASSWORD': self.dockerhub_password,
-            'EXECUTION_TYPE': "cloud"
+            "GITHUB_USERNAME": self.github_username,
+            "GITHUB_TOKEN": self.github_token,
+            "GITHUB_PROJECT_URL": self.github_project_url,
+            "GITHUB_BRANCH": self.github_branch,
+            "DOCKERHUB_USERNAME": self.dockerhub_username,
+            "DOCKERHUB_PASSWORD": self.dockerhub_password,
+            "EXECUTION_TYPE": "cloud",
         }
 
         if self.docker_compose_file_path:
@@ -230,4 +273,19 @@ class SetupRunner:
             extravars["ENV_PATH"] = self.env_path
             extravars["ENV_DATA"] = self.env_data
 
-        self._run_ansible_playbook(extravars, 'dynamic_inventory.yml')
+        self._run_ansible_playbook(extravars, "dynamic_inventory.yml")
+
+    def run_k8s_setup(self, inventory_file="inventory.yml"):
+        """Runs the K8s setup playbook."""
+        logger.info("Starting K8s setup...")
+        # Reuse existing variables or allow bare execution
+        extravars = {"ansible_python_interpreter": "/usr/bin/python3"}
+        self._run_ansible_playbook(extravars, "k8s.yml")
+        logger.info("K8s setup completed.")
+
+    def run_monitoring_setup(self, inventory_file="inventory.yml"):
+        """Runs the Monitoring setup playbook."""
+        logger.info("Starting Monitoring setup...")
+        extravars = {"ansible_python_interpreter": "/usr/bin/python3"}
+        self._run_ansible_playbook(extravars, "monitoring.yml")
+        logger.info("Monitoring setup completed.")

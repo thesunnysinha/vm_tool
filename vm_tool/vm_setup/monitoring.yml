@@ -1,0 +1,42 @@
+---
+- name: Install Monitoring Stack
+  hosts: all
+  become: true
+  tasks:
+    - name: Create monitoring directory
+      file:
+        path: /opt/monitoring
+        state: directory
+
+    - name: Create docker-compose.yml for monitoring
+      copy:
+        dest: /opt/monitoring/docker-compose.yml
+        content: |
+          version: '3'
+          services:
+            prometheus:
+              image: prom/prometheus
+              ports:
+                - 9090:9090
+              volumes:
+                - ./prometheus.yml:/etc/prometheus/prometheus.yml
+            grafana:
+              image: grafana/grafana
+              ports:
+                - 3000:3000
+    
+    - name: Create prometheus config
+      copy:
+        dest: /opt/monitoring/prometheus.yml
+        content: |
+          global:
+            scrape_interval: 15s
+          scrape_configs:
+            - job_name: 'prometheus'
+              static_configs:
+                - targets: ['localhost:9090']
+
+    - name: Start monitoring services
+      command: docker compose up -d
+      args:
+        chdir: /opt/monitoring

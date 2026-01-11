@@ -1,0 +1,13 @@
+{
+    "version": 2,
+    "builds": [
+        {
+            "src": "mkdocs.yml",
+            "use": "@vercel/python",
+            "config": { "includeFiles": ["docs/**"] }
+        }
+    ],
+    "routes": [
+        { "src": "/(.*)", "dest": "/" }
+    ]
+}

@@ -1,0 +1,20 @@
+site_name: VM Tool Documentation
+theme:
+  name: material
+  palette:
+    primary: teal
+    accent: purple
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [.]
+
+nav:
+  - Home: index.md
+  - Usage Guide: usage.md
+  - API Reference:
+      - Runner: reference/runner.md
+      - SSH: reference/ssh.md
