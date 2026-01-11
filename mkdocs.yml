@@ -16,7 +16,10 @@ plugins:
 nav:
   - Home: index.md
   - Usage Guide: usage.md
-  - Pipeline Generator (UI): generator.md
+  - Features: features.md
+  - Pipeline Generator: generator.md
+  - EC2 Deployment: ec2-github-actions-guide.md
+  - SSH Key Setup: ssh-key-setup.md
   - API Reference:
       - Runner: reference/runner.md
       - SSH: reference/ssh.md
