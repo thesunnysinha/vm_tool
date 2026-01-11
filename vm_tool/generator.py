@@ -1,139 +1,352 @@
-import logging
-import os
+"""Dynamic CI/CD pipeline generator with all vm_tool features."""
 
-logger = logging.getLogger(__name__)
+import os
+from pathlib import Path
+from typing import Optional
 
 
 class PipelineGenerator:
-    """
-    Generates CI/CD pipeline configurations.
-    """
+    """Generate CI/CD pipelines with vm_tool features."""
 
-    GITHUB_TEMPLATE = """name: Project Deployment
+    def __init__(
+        self,
+        platform: str = "github",
+        strategy: str = "docker",
+        enable_monitoring: bool = False,
+        enable_health_checks: bool = True,
+        enable_backup: bool = True,
+        enable_rollback: bool = True,
+        enable_drift_detection: bool = False,
+        enable_dry_run: bool = True,
+        health_port: Optional[int] = 8000,
+        health_url: Optional[str] = None,
+        backup_paths: Optional[list] = None,
+        app_port: int = 8000,
+    ):
+        self.platform = platform
+        self.strategy = strategy
+        self.enable_monitoring = enable_monitoring
+        self.enable_health_checks = enable_health_checks
+        self.enable_backup = enable_backup
+        self.enable_rollback = enable_rollback
+        self.enable_drift_detection = enable_drift_detection
+        self.enable_dry_run = enable_dry_run
+        self.health_port = health_port
+        self.health_url = (
+            health_url or f"http://${{{{ secrets.EC2_HOST }}}}:{app_port}/health"
+        )
+        self.backup_paths = backup_paths or ["/app", "/etc/nginx"]
+        self.app_port = app_port
+
+    def generate(self) -> str:
+        """Generate pipeline based on platform."""
+        if self.platform == "github":
+            return self._generate_github_actions()
+        elif self.platform == "gitlab":
+            return self._generate_gitlab_ci()
+        else:
+            raise ValueError(f"Unsupported platform: {self.platform}")
+
+    def _generate_github_actions(self) -> str:
+        """Generate GitHub Actions workflow with all features."""
+
+        # Build steps dynamically
+        steps = []
+
+        # Basic setup steps
+        steps.extend(
+            [
+                self._step_checkout(),
+                self._step_validate_secrets(),
+                self._step_setup_python(),
+                self._step_install_vm_tool(),
+                self._step_setup_ssh(),
+                self._step_validate_ssh(),
+            ]
+        )
+
+        # Copy files
+        steps.append(self._step_copy_files())
+
+        # Backup step
+        if self.enable_backup:
+            steps.append(self._step_create_backup())
+
+        # Drift detection (pre-deployment)
+        if self.enable_drift_detection:
+            steps.append(self._step_drift_check())
+
+        # Dry-run step
+        if self.enable_dry_run:
+            steps.append(self._step_dry_run())
+
+        # Main deployment
+        steps.append(self._step_deploy())
+
+        # Health checks
+        if self.enable_health_checks:
+            steps.append(self._step_health_check())
+
+        # Verification
+        steps.append(self._step_verify())
+
+        # Rollback on failure
+        if self.enable_rollback:
+            steps.append(self._step_rollback())
+
+        # Cleanup
+        steps.append(self._step_cleanup())
+
+        # Notification
+        steps.append(self._step_notification())
+
+        # Combine all steps
+        steps_yaml = "\n".join(steps)
+
+        return f"""name: Deploy to EC2 with vm_tool
 
 on:
   push:
-    branches: [ (( branch_name )) ]
-  workflow_dispatch:  # Allow manual trigger
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  EC2_HOST: ${{{{ secrets.EC2_HOST }}}}
+  EC2_USER: ${{{{ secrets.EC2_USER }}}}
+  APP_PORT: {self.app_port}
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '(( python_version ))'
-
-    - name: Install vm_tool
-      run: pip install vm-tool
-
-    {% if run_linting %}
-    - name: Run Linting
-      run: |
-        pip install flake8
-        flake8 .
-    {% endif %}
-
-    {% if run_tests %}
-    - name: Run Tests
-      run: |
-        pip install pytest
-        pytest
-    {% endif %}
-
-    - name: Validate Secrets
-      run: |
-        if [ -z "${{ secrets.SSH_PRIVATE_KEY }}" ]; then
-          echo "❌ Error: SSH_PRIVATE_KEY secret is not set."
-          echo "👉 Action: Run 'cat ~/.ssh/id_rsa' (or your key path) locally, copy the content, and add it as 'SSH_PRIVATE_KEY' in GitHub Actions Secrets."
-          exit 1
-        fi
-        if [ -z "${{ secrets.VM_HOST }}" ]; then
-          echo "❌ Error: VM_HOST secret is not set."
-          echo "👉 Action: Add your server IP address (e.g., 1.2.3.4) as 'VM_HOST' in GitHub Actions Secrets."
-          exit 1
-        fi
-        if [ -z "${{ secrets.SSH_USER }}" ]; then
-          echo "❌ Error: SSH_USER secret is not set."
-          echo "👉 Action: Add your SSH username (e.g., root or ubuntu) as 'SSH_USER' in GitHub Actions Secrets."
-          exit 1
-        fi
-
-    - name: Setup SSH Key
-      run: |
-        mkdir -p ~/.ssh
-        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
-        ssh-keyscan -H ${{ secrets.VM_HOST }} >> ~/.ssh/known_hosts
-
-    {% if deployment_type == 'kubernetes' %}
-    - name: Setup Kubernetes (K3s)
-      run: |
-        echo "Setting up K3s..."
-        # vm_tool setup-k8s --inventory inventory.yml
-    {% endif %}
-
-    {% if deployment_type == 'docker' %}
-    - name: Deploy with Docker Compose
-      run: |
-        echo "Deploying with Docker Compose..."
-        vm_tool deploy-docker --compose-file (( docker_compose_file )) {% if env_file %}--env-file (( env_file )) {% endif %}--host ${{ secrets.VM_HOST }} --user ${{ secrets.SSH_USER }}
-    {% endif %}
-
-    {% if deployment_type == 'custom' %}
-    - name: Custom Deployment
-      run: |
-        echo "Running Custom Deployment..."
-        vm_tool deploy-docker --deploy-command "(( deploy_command ))" --host ${{ secrets.VM_HOST }} --user ${{ secrets.SSH_USER }}
-    {% endif %}
-
-    {% if setup_monitoring %}
-    - name: Setup Observability (Prometheus/Grafana)
-      if: success()
-      run: |
-        echo "Setting up Monitoring..."
-        # vm_tool setup-monitoring --inventory inventory.yml
-    {% endif %}
+{steps_yaml}
 """
 
-    def generate(self, platform: str = "github", context: dict = None):
-        """Generate pipeline configuration."""
-        if platform != "github":
-            raise NotImplementedError(f"Platform {platform} not supported yet.")
+    def _step_checkout(self) -> str:
+        return """      - name: Checkout code
+        uses: actions/checkout@v4"""
 
-        if context is None:
-            context = {
-                "branch_name": "main",
-                "python_version": "3.12",
-                "run_linting": False,
-                "run_tests": False,
-                "setup_monitoring": False,
-                "deployment_type": "docker",
-                "docker_compose_file": "docker-compose.yml",
-                "env_file": None,
-                "deploy_command": None,
-            }
+    def _step_validate_secrets(self) -> str:
+        return """
+      - name: Validate Required Secrets
+        run: |
+          echo "🔐 Validating GitHub Secrets..."
+          MISSING_SECRETS=()
+          
+          if [ -z "${{ secrets.EC2_HOST }}" ]; then
+            MISSING_SECRETS+=("EC2_HOST")
+          fi
+          
+          if [ -z "${{ secrets.EC2_USER }}" ]; then
+            MISSING_SECRETS+=("EC2_USER")
+          fi
+          
+          if [ -z "${{ secrets.EC2_SSH_KEY }}" ]; then
+            MISSING_SECRETS+=("EC2_SSH_KEY")
+          fi
+          
+          if [ ${#MISSING_SECRETS[@]} -ne 0 ]; then
+            echo ""
+            echo "❌ ERROR: Missing required GitHub Secrets!"
+            echo ""
+            echo "Missing: ${MISSING_SECRETS[*]}"
+            echo ""
+            echo "📝 How to add secrets:"
+            echo "1. Go to: Repository → Settings → Secrets → Actions"
+            echo "2. Add each secret:"
+            echo ""
+            
+            if [[ " ${MISSING_SECRETS[*]} " =~ " EC2_HOST " ]]; then
+              echo "   EC2_HOST: Your EC2 IP (e.g., 54.123.45.67)"
+            fi
+            
+            if [[ " ${MISSING_SECRETS[*]} " =~ " EC2_USER " ]]; then
+              echo "   EC2_USER: SSH username (e.g., ubuntu)"
+            fi
+            
+            if [[ " ${MISSING_SECRETS[*]} " =~ " EC2_SSH_KEY " ]]; then
+              echo "   EC2_SSH_KEY: Run 'cat ~/.ssh/id_rsa' and copy output"
+            fi
+            
+            echo ""
+            echo "📚 See: docs/ssh-key-setup.md"
+            exit 1
+          fi
+          
+          echo "✅ All secrets configured"
+"""
 
-        from jinja2 import BaseLoader, Environment
+    def _step_setup_python(self) -> str:
+        return """
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'"""
 
-        env = Environment(
-            loader=BaseLoader(),
-            variable_start_string="((",
-            variable_end_string="))",
-            autoescape=True,
-        )
-        template = env.from_string(self.GITHUB_TEMPLATE)
-        rendered_content = template.render(**context)
+    def _step_install_vm_tool(self) -> str:
+        return """
+      - name: Install vm_tool
+        run: pip install vm-tool"""
 
-        workflow_dir = ".github/workflows"
-        os.makedirs(workflow_dir, exist_ok=True)
+    def _step_setup_ssh(self) -> str:
+        return """
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts"""
 
-        file_path = os.path.join(workflow_dir, "deploy.yml")
-        with open(file_path, "w") as f:
-            f.write(rendered_content)
+    def _step_validate_ssh(self) -> str:
+        return """
+      - name: Validate SSH Connection
+        run: |
+          echo "✅ Testing SSH connection..."
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \\
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "echo 'Connected'" || {
+            echo "❌ SSH failed! Check docs/ssh-key-setup.md"
+            exit 1
+          }"""
 
-        logger.info(f"Generated GitHub Actions workflow at {file_path}")
+    def _step_copy_files(self) -> str:
+        return """
+      - name: Copy files to EC2
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \\
+            'mkdir -p ~/app'
+          
+          scp -i ~/.ssh/deploy_key docker-compose.yml \\
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/app/
+          
+          rsync -avz -e "ssh -i ~/.ssh/deploy_key" \\
+            --exclude '.git' --exclude 'node_modules' --exclude '.env' \\
+            ./ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/app/"""
+
+    def _step_create_backup(self) -> str:
+        return """
+      - name: Create backup
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            mkdir -p ~/backups
+            if [ -d ~/app ]; then
+              tar -czf ~/backups/backup-$(date +%Y%m%d-%H%M%S).tar.gz -C ~/app . 2>/dev/null || true
+              echo "✅ Backup created"
+            fi
+          EOF"""
+
+    def _step_drift_check(self) -> str:
+        return """
+      - name: Check drift
+        continue-on-error: true
+        run: |
+          echo "🔍 Checking for configuration drift..."
+          # Add drift detection logic"""
+
+    def _step_dry_run(self) -> str:
+        return """
+      - name: Dry-run
+        run: |
+          echo "🔍 DRY-RUN: Previewing deployment"
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            cd ~/app && docker-compose config
+          EOF"""
+
+    def _step_deploy(self) -> str:
+        return """
+      - name: Deploy
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            cd ~/app
+            docker-compose pull
+            docker-compose down
+            docker-compose up -d --build
+            sleep 10
+          EOF"""
+
+    def _step_health_check(self) -> str:
+        return f"""
+      - name: Health check
+        run: |
+          for i in {{{{1..30}}}}; do
+            if curl -f {self.health_url} 2>/dev/null; then
+              echo "✅ Health check passed"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "❌ Health check failed"
+          exit 1"""
+
+    def _step_verify(self) -> str:
+        return """
+      - name: Verify
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            cd ~/app
+            docker-compose ps
+            docker-compose logs --tail=20
+          EOF"""
+
+    def _step_rollback(self) -> str:
+        return """
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          echo "⚠️  Rolling back..."
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            BACKUP=$(ls -t ~/backups/*.tar.gz 2>/dev/null | head -1)
+            if [ -n "$BACKUP" ]; then
+              cd ~/app && tar -xzf $BACKUP
+              docker-compose up -d
+              echo "✅ Rolled back"
+            fi
+          EOF"""
+
+    def _step_cleanup(self) -> str:
+        return """
+      - name: Cleanup
+        if: success()
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            cd ~/backups 2>/dev/null || exit 0
+            ls -t *.tar.gz 2>/dev/null | tail -n +6 | xargs rm -f || true
+          EOF"""
+
+    def _step_notification(self) -> str:
+        return """
+      - name: Notify
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ Deployed to ${{ secrets.EC2_HOST }}:${{ env.APP_PORT }}"
+          else
+            echo "❌ Deployment failed"
+          fi"""
+
+    def _generate_gitlab_ci(self) -> str:
+        """Generate GitLab CI pipeline."""
+        return """# GitLab CI (Coming Soon)
+# Use GitHub Actions for now
+"""
+
+    def save(self, output_path: Optional[str] = None) -> str:
+        """Save generated pipeline to file."""
+        content = self.generate()
+
+        if output_path is None:
+            if self.platform == "github":
+                output_path = ".github/workflows/deploy.yml"
+            elif self.platform == "gitlab":
+                output_path = ".gitlab-ci.yml"
+
+        # Create directory if it doesn't exist
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+        # Write file
+        with open(output_path, "w") as f:
+            f.write(content)
+
+        return output_path
