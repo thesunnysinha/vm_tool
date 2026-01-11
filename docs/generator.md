@@ -9,25 +9,6 @@ Use this tool to generate a GitHub Actions workflow for your project. Fill in th
         <small style="color: #666;">The branch that triggers the deployment.</small>
     </div>
 
-    <div>
-        <label for="provider" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Cloud Provider</label>
-        <select id="provider" name="provider" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
-            <option value="aws">AWS</option>
-            <option value="gcp">Google Cloud (Coming Soon)</option>
-            <option value="azure">Azure (Coming Soon)</option>
-        </select>
-    </div>
-
-    <div>
-        <label for="aws_region" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">AWS Region</label>
-        <input type="text" id="aws_region" name="aws_region" value="us-east-1" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
-    </div>
-
-    <div>
-        <label for="instance_type" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Instance Type</label>
-        <input type="text" id="instance_type" name="instance_type" value="t2.small" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
-    </div>
-
     <button type="button" onclick="generatePipeline()" style="padding: 0.75rem; background-color: #009485; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Generate Workflow</button>
 
 </form>
@@ -39,7 +20,7 @@ Use this tool to generate a GitHub Actions workflow for your project. Fill in th
 </div>
 
 <script>
-const TEMPLATE = `name: Infrastructure Deployment
+const TEMPLATE = `name: Project Deployment
 
 on:
   push:
@@ -69,19 +50,7 @@ jobs:
     #     chmod 600 ~/.ssh/id_rsa
     #     ssh-keyscan -H \${{ secrets.VM_HOST }} >> ~/.ssh/known_hosts
 
-    - name: Provision Infrastructure
-      env:
-        # Provider credentials (example for AWS)
-        AWS_ACCESS_KEY_ID: \${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: \${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_DEFAULT_REGION: '(( aws_region ))'
-      run: |
-        echo "Provisioning infrastructure..."
-        # Uncomment to enable provisioning
-        # vm_tool provision --provider (( provider )) --action apply --vars region=(( aws_region )) instance_type=(( instance_type ))
-
     - name: Setup Kubernetes (K3s)
-      if: success()
       run: |
         echo "Setting up K3s..."
         # vm_tool setup-k8s --inventory inventory.yml
@@ -95,15 +64,9 @@ jobs:
 
 function generatePipeline() {
     const branch = document.getElementById('branch_name').value;
-    const provider = document.getElementById('provider').value;
-    const region = document.getElementById('aws_region').value;
-    const instanceType = document.getElementById('instance_type').value;
 
     let output = TEMPLATE
-        .replace(/\(\( branch_name \)\)/g, branch)
-        .replace(/\(\( aws_region \)\)/g, region)
-        .replace(/\(\( provider \)\)/g, provider)
-        .replace(/\(\( instance_type \)\)/g, instanceType);
+        .replace(/\(\( branch_name \)\)/g, branch);
 
     document.getElementById('yamlOutput').textContent = output;
     document.getElementById('output').style.display = 'block';

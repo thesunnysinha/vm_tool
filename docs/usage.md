@@ -77,8 +77,6 @@ vm_tool generate-pipeline --platform github
 The command is **interactive** by default. It will prompt you for:
 
 - Branch to trigger the workflow.
-- Cloud Provider (AWS, etc.).
-- Region and Instance Type (if AWS).
 
 This creates a `.github/workflows/deploy.yml` file in your current directory.
 

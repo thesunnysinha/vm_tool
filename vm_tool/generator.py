@@ -9,7 +9,7 @@ class PipelineGenerator:
     Generates CI/CD pipeline configurations.
     """
 
-    GITHUB_TEMPLATE = """name: Infrastructure Deployment
+    GITHUB_TEMPLATE = """name: Project Deployment
 
 on:
   push:
@@ -39,19 +39,7 @@ jobs:
     #     chmod 600 ~/.ssh/id_rsa
     #     ssh-keyscan -H ${{ secrets.VM_HOST }} >> ~/.ssh/known_hosts
 
-    - name: Provision Infrastructure
-      env:
-        # Provider credentials (example for AWS)
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_DEFAULT_REGION: '(( aws_region ))'
-      run: |
-        echo "Provisioning infrastructure..."
-        # Uncomment to enable provisioning
-        # vm_tool provision --provider (( provider )) --action apply --vars region=(( aws_region )) instance_type=(( instance_type ))
-
     - name: Setup Kubernetes (K3s)
-      if: success()
       run: |
         echo "Setting up K3s..."
         # vm_tool setup-k8s --inventory inventory.yml
@@ -71,9 +59,6 @@ jobs:
         if context is None:
             context = {
                 "branch_name": "main",
-                "provider": "aws",
-                "aws_region": "us-east-1",
-                "instance_type": "t2.small",
             }
 
         from jinja2 import Environment, BaseLoader
