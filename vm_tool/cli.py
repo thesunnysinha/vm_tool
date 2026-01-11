@@ -107,6 +107,21 @@ def main():
         action="store_true",
         help="Force redeployment even if no changes detected",
     )
+    docker_parser.add_argument(
+        "--health-check",
+        type=str,
+        help="Health check command to run after deployment (e.g., 'curl http://localhost:8000/health')",
+    )
+    docker_parser.add_argument(
+        "--health-port",
+        type=int,
+        help="Port to check for availability after deployment",
+    )
+    docker_parser.add_argument(
+        "--health-url",
+        type=str,
+        help="HTTP URL to check after deployment (e.g., 'http://localhost:8000/health')",
+    )
 
     # Pipeline Generator command
     pipe_parser = subparsers.add_parser(
@@ -241,6 +256,31 @@ def main():
                 deploy_command=args.deploy_command,
                 force=args.force,
             )
+
+            # Run health checks if specified
+            if host and (args.health_check or args.health_port or args.health_url):
+                from vm_tool.health import SmokeTestSuite
+
+                print("\n🏥 Running Health Checks...")
+                suite = SmokeTestSuite(host)
+
+                if args.health_port:
+                    suite.add_port_check(args.health_port)
+
+                if args.health_url:
+                    suite.add_http_check(args.health_url)
+
+                if args.health_check:
+                    suite.add_custom_check(args.health_check, "Custom Health Check")
+
+                if not suite.run_all():
+                    print(
+                        "\n❌ Health checks failed. Deployment may not be working correctly."
+                    )
+                    sys.exit(1)
+                else:
+                    print("\n✅ All health checks passed!")
+
         except Exception as e:
             print(f"Error: {e}")
             sys.exit(1)
