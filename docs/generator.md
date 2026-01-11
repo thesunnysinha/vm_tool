@@ -24,7 +24,7 @@ Use this tool to generate a GitHub Actions workflow for your project. Fill in th
             <label for="run_tests" style="cursor: pointer;">Run Tests (pytest)</label>
         </div>
         <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <input type="checkbox" id="setup_monitoring" name="setup_monitoring" checked>
+            <input type="checkbox" id="setup_monitoring" name="setup_monitoring">
             <label for="setup_monitoring" style="cursor: pointer;">Include Monitoring (Prometheus/Grafana)</label>
         </div>
     </div>

@@ -19,7 +19,9 @@ def test_generate_github_pipeline(mock_fs):
     handle = mock_open_func.return_value.__enter__.return_value
     handle.write.assert_called_once()
     assert "vm_tool setup-k8s" in handle.write.call_args[0][0]
-    assert "vm_tool setup-monitoring" in handle.write.call_args[0][0]  # Default is True
+    assert (
+        "vm_tool setup-monitoring" not in handle.write.call_args[0][0]
+    )  # Default is False
     # Check new defaults
     content = handle.write.call_args[0][0]
     assert "python-version: '3.12'" in content

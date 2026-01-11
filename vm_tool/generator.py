@@ -78,7 +78,7 @@ jobs:
                 "python_version": "3.12",
                 "run_linting": False,
                 "run_tests": False,
-                "setup_monitoring": True,
+                "setup_monitoring": False,
             }
 
         from jinja2 import Environment, BaseLoader

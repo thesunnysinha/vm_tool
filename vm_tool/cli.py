@@ -131,11 +131,11 @@ def main():
             run_tests = enable_tests in ("y", "yes")
 
             enable_monitoring = (
-                input("Include Monitoring (Prometheus/Grafana)? [Y/n]: ")
+                input("Include Monitoring (Prometheus/Grafana)? [y/N]: ")
                 .strip()
                 .lower()
             )
-            setup_monitoring = enable_monitoring not in ("n", "no")
+            setup_monitoring = enable_monitoring in ("y", "yes")
 
             context = {
                 "branch_name": branch,
