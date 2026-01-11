@@ -7,6 +7,12 @@ def main():
         description="VM Tool: Setup, Provision, and Manage VMs"
     )
     parser.add_argument("--version", action="version", version="1.0.30")
+    parser.add_argument(
+        "--verbose", "-v", action="store_true", help="Enable verbose output"
+    )
+    parser.add_argument(
+        "--debug", "-d", action="store_true", help="Enable debug logging"
+    )
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
@@ -143,6 +149,21 @@ def main():
     )
 
     args = parser.parse_args()
+
+    # Configure logging based on flags
+    import logging
+
+    if args.debug:
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        )
+        print("🐛 Debug logging enabled")
+    elif args.verbose:
+        logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+        print("📢 Verbose output enabled")
+    else:
+        logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
 
     if args.command == "config":
         from vm_tool.config import Config
