@@ -1,0 +1,140 @@
+name: Deploy to EC2 with vm_tool
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  EC2_HOST: ${{ secrets.EC2_HOST }}
+  EC2_USER: ${{ secrets.EC2_USER }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install vm_tool
+        run: pip install vm-tool
+
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Copy project files to EC2
+        run: |
+          # Create app directory if it doesn't exist
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+            'mkdir -p ~/app'
+          
+          # Copy docker-compose and related files
+          scp -i ~/.ssh/deploy_key docker-compose.yml \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/app/
+          
+          # Copy application code
+          rsync -avz -e "ssh -i ~/.ssh/deploy_key" \
+            --exclude '.git' \
+            --exclude 'node_modules' \
+            --exclude '.env' \
+            ./ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/app/
+
+      - name: Create backup before deployment
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            mkdir -p ~/backups
+            BACKUP_FILE=~/backups/backup-$(date +%Y%m%d-%H%M%S).tar.gz
+            if [ -d ~/app ]; then
+              cd ~/app && tar -czf $BACKUP_FILE . || true
+              echo "Backup created: $BACKUP_FILE"
+            fi
+          EOF
+
+      - name: Deploy with Docker Compose
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            cd ~/app
+            
+            # Pull latest images
+            docker-compose pull
+            
+            # Stop old containers
+            docker-compose down
+            
+            # Start new containers
+            docker-compose up -d --build
+            
+            # Wait for services to start
+            sleep 10
+          EOF
+
+      - name: Health check
+        run: |
+          # Wait for application to be ready
+          for i in {1..30}; do
+            if curl -f http://${{ secrets.EC2_HOST }}:8000/health 2>/dev/null; then
+              echo "✅ Health check passed"
+              exit 0
+            fi
+            echo "Waiting for application... ($i/30)"
+            sleep 2
+          done
+          echo "❌ Health check failed"
+          exit 1
+
+      - name: Verify deployment
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            cd ~/app
+            echo "📊 Container status:"
+            docker-compose ps
+            echo ""
+            echo "📝 Recent logs:"
+            docker-compose logs --tail=50
+          EOF
+
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          echo "⚠️  Deployment failed, attempting rollback..."
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            cd ~/app
+            LATEST_BACKUP=$(ls -t ~/backups/*.tar.gz 2>/dev/null | head -1)
+            if [ -n "$LATEST_BACKUP" ]; then
+              echo "Rolling back to: $LATEST_BACKUP"
+              tar -xzf $LATEST_BACKUP
+              docker-compose up -d
+              echo "✅ Rollback complete"
+            else
+              echo "❌ No backup found for rollback"
+            fi
+          EOF
+
+      - name: Cleanup old backups
+        if: success()
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            # Keep only last 5 backups
+            cd ~/backups
+            ls -t *.tar.gz 2>/dev/null | tail -n +6 | xargs rm -f || true
+            echo "✅ Cleanup complete"
+          EOF
+
+      - name: Send notification
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ Deployment successful to ${{ secrets.EC2_HOST }}"
+          else
+            echo "❌ Deployment failed to ${{ secrets.EC2_HOST }}"
+          fi
