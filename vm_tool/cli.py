@@ -10,6 +10,50 @@ def main():
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
+    # Config command
+    config_parser = subparsers.add_parser("config", help="Manage configuration")
+    config_subparsers = config_parser.add_subparsers(
+        dest="config_command", help="Config operations"
+    )
+
+    # config set
+    set_parser = config_subparsers.add_parser("set", help="Set a config value")
+    set_parser.add_argument("key", type=str, help="Config key")
+    set_parser.add_argument("value", type=str, help="Config value")
+
+    # config get
+    get_parser = config_subparsers.add_parser("get", help="Get a config value")
+    get_parser.add_argument("key", type=str, help="Config key")
+
+    # config unset
+    unset_parser = config_subparsers.add_parser("unset", help="Unset a config value")
+    unset_parser.add_argument("key", type=str, help="Config key")
+
+    # config list
+    list_parser = config_subparsers.add_parser("list", help="List all config values")
+
+    # config create-profile
+    create_profile_parser = config_subparsers.add_parser(
+        "create-profile", help="Create a deployment profile"
+    )
+    create_profile_parser.add_argument("name", type=str, help="Profile name")
+    create_profile_parser.add_argument("--host", type=str, help="Target host")
+    create_profile_parser.add_argument("--user", type=str, help="SSH user")
+    create_profile_parser.add_argument(
+        "--compose-file", type=str, help="Docker Compose file"
+    )
+
+    # config list-profiles
+    list_profiles_parser = config_subparsers.add_parser(
+        "list-profiles", help="List all profiles"
+    )
+
+    # config delete-profile
+    delete_profile_parser = config_subparsers.add_parser(
+        "delete-profile", help="Delete a profile"
+    )
+    delete_profile_parser.add_argument("name", type=str, help="Profile name")
+
     # K8s Setup command
     k8s_parser = subparsers.add_parser(
         "setup-k8s", help="Install K3s Kubernetes cluster"
@@ -55,6 +99,9 @@ def main():
         type=str,
         help="Custom deployment command (overrides default docker compose up)",
     )
+    docker_parser.add_argument(
+        "--profile", type=str, help="Use a saved deployment profile"
+    )
 
     # Pipeline Generator command
     pipe_parser = subparsers.add_parser(
@@ -70,9 +117,67 @@ def main():
 
     args = parser.parse_args()
 
-    args = parser.parse_args()
+    if args.command == "config":
+        from vm_tool.config import Config
 
-    if args.command == "setup-k8s":
+        config = Config()
+
+        if args.config_command == "set":
+            config.set(args.key, args.value)
+            print(f"✅ Set {args.key} = {args.value}")
+
+        elif args.config_command == "get":
+            value = config.get(args.key)
+            if value is not None:
+                print(f"{args.key} = {value}")
+            else:
+                print(f"❌ Config key '{args.key}' not found")
+                sys.exit(1)
+
+        elif args.config_command == "unset":
+            config.unset(args.key)
+            print(f"✅ Unset {args.key}")
+
+        elif args.config_command == "list":
+            all_config = config.list_all()
+            if all_config:
+                print("📋 Configuration:")
+                for key, value in all_config.items():
+                    print(f"  {key} = {value}")
+            else:
+                print("No configuration set")
+
+        elif args.config_command == "create-profile":
+            profile_data = {}
+            if args.host:
+                profile_data["host"] = args.host
+            if args.user:
+                profile_data["user"] = args.user
+            if args.compose_file:
+                profile_data["compose_file"] = args.compose_file
+
+            config.create_profile(args.name, **profile_data)
+            print(f"✅ Created profile '{args.name}'")
+
+        elif args.config_command == "list-profiles":
+            profiles = config.list_profiles()
+            if profiles:
+                print("📋 Profiles:")
+                for name, data in profiles.items():
+                    print(f"  {name}:")
+                    for key, value in data.items():
+                        print(f"    {key} = {value}")
+            else:
+                print("No profiles configured")
+
+        elif args.config_command == "delete-profile":
+            config.delete_profile(args.name)
+            print(f"✅ Deleted profile '{args.name}'")
+
+        else:
+            config_parser.print_help()
+
+    elif args.command == "setup-k8s":
         try:
             # We need a dummy config to init SetupRunner, or refactor SetupRunner to be more flexible.
             # For now, we pass minimal required args.
@@ -98,17 +203,35 @@ def main():
 
     elif args.command == "deploy-docker":
         try:
+            from vm_tool.config import Config
             from vm_tool.runner import SetupRunner, SetupRunnerConfig
+
+            # Load profile if specified
+            profile_data = {}
+            if args.profile:
+                config = Config()
+                profile_data = config.get_profile(args.profile) or {}
+                if not profile_data:
+                    print(f"❌ Profile '{args.profile}' not found")
+                    sys.exit(1)
+                print(f"📋 Using profile: {args.profile}")
+
+            # Merge profile with CLI args (CLI args take precedence)
+            host = args.host or profile_data.get("host")
+            user = args.user or profile_data.get("user")
+            compose_file = args.compose_file or profile_data.get(
+                "compose_file", "docker-compose.yml"
+            )
 
             # For deployment, we might need github creds if the playbook pulls code
             # But for now we use dummy or env vars
             config = SetupRunnerConfig(github_project_url="dummy")
             runner = SetupRunner(config)
             runner.run_docker_deploy(
-                compose_file=args.compose_file,
+                compose_file=compose_file,
                 inventory_file=args.inventory,
-                host=args.host,
-                user=args.user,
+                host=host,
+                user=user,
                 env_file=args.env_file,
                 deploy_command=args.deploy_command,
             )
