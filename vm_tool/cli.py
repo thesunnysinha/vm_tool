@@ -74,9 +74,6 @@ def main():
     k8s_parser.add_argument(
         "--inventory", type=str, default="inventory.yml", help="Inventory file to use"
     )
-    k8s_parser.add_argument(
-        "--inventory", type=str, default="inventory.yml", help="Inventory file to use"
-    )
     # Reuse SetupRunnerConfig arguments if needed, but for now we assume inventory is enough or environment vars
 
     # Monitoring Setup command
