@@ -19,6 +19,12 @@ Use this tool to generate a GitHub Actions workflow for your project. Fill in th
         <input type="text" id="docker_compose_file" name="docker_compose_file" value="docker-compose.yml" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
     </div>
 
+    <div style="margin-top: 1rem;">
+        <label for="app_port" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Application Port</label>
+        <input type="number" id="app_port" name="app_port" value="8000" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
+        <small style="color: #666;">Port your application runs on (used for health checks)</small>
+    </div>
+
     <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem; padding: 1rem; background: #f9f9f9; border-radius: 4px;">
         <h4 style="margin: 0 0 0.5rem 0;">Features (Ansible-based)</h4>
         <div style="display: flex; align-items: center; gap: 0.5rem;">
@@ -63,7 +69,7 @@ on:
 env:
   EC2_HOST: \${{ secrets.EC2_HOST }}
   EC2_USER: \${{ secrets.EC2_USER }}
-  APP_PORT: 8000
+  APP_PORT: APP_PORT
 
 jobs:
   deploy:
@@ -201,7 +207,7 @@ const HEALTH_CHECK_STEP = `
       - name: Health check
         run: |
           for i in {1..30}; do
-            if curl -f http://\${{ secrets.EC2_HOST }}:8000/health 2>/dev/null; then
+            if curl -f http://\${{ secrets.EC2_HOST }}:APP_PORT/health 2>/dev/null; then
               echo "✅ Health check passed"
               exit 0
             fi
@@ -230,6 +236,7 @@ function generatePipeline() {
     const branch = document.getElementById('branch_name').value;
     const pythonVersion = document.getElementById('python_version').value;
     const composeFile = document.getElementById('docker_compose_file').value;
+    const appPort = document.getElementById('app_port').value;
     const enableBackup = document.getElementById('enable_backup').checked;
     const enableDryRun = document.getElementById('enable_dry_run').checked;
     const enableHealthCheck = document.getElementById('enable_health_check').checked;
@@ -238,11 +245,12 @@ function generatePipeline() {
     let output = TEMPLATE
         .replace(/BRANCH_NAME/g, branch)
         .replace(/PYTHON_VERSION/g, pythonVersion)
-        .replace(/COMPOSE_FILE/g, composeFile);
+        .replace(/COMPOSE_FILE/g, composeFile)
+        .replace(/APP_PORT/g, appPort);
     
     output = output.replace(/BACKUP_STEP/g, enableBackup ? BACKUP_STEP : '');
     output = output.replace(/DRY_RUN_STEP/g, enableDryRun ? DRY_RUN_STEP : '');
-    output = output.replace(/HEALTH_CHECK_STEP/g, enableHealthCheck ? HEALTH_CHECK_STEP : '');
+    output = output.replace(/HEALTH_CHECK_STEP/g, enableHealthCheck ? HEALTH_CHECK_STEP.replace(/APP_PORT/g, appPort) : '');
     output = output.replace(/ROLLBACK_STEP/g, enableRollback ? ROLLBACK_STEP : '');
 
     document.getElementById('yamlOutput').textContent = output;
