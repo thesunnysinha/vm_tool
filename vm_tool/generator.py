@@ -79,7 +79,10 @@ jobs:
         from jinja2 import Environment, BaseLoader
 
         env = Environment(
-            loader=BaseLoader(), variable_start_string="((", variable_end_string="))"
+            loader=BaseLoader(),
+            variable_start_string="((",
+            variable_end_string="))",
+            autoescape=True,
         )
         template = env.from_string(self.GITHUB_TEMPLATE)
         rendered_content = template.render(**context)
