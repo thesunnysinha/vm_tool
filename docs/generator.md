@@ -104,18 +104,21 @@ const TEMPLATE_TESTING = `
 `;
 
 const TEMPLATE_SSH = `
-    - name: Check for Secrets
+    - name: Validate Secrets
       run: |
         if [ -z "\${{ secrets.SSH_PRIVATE_KEY }}" ]; then
-          echo "Error: SSH_PRIVATE_KEY secret is not set."
+          echo "❌ Error: SSH_PRIVATE_KEY secret is not set."
+          echo "👉 Action: Run 'cat ~/.ssh/id_rsa' (or your key path) locally, copy the content, and add it as 'SSH_PRIVATE_KEY' in GitHub Actions Secrets."
           exit 1
         fi
         if [ -z "\${{ secrets.VM_HOST }}" ]; then
-          echo "Error: VM_HOST secret is not set."
+          echo "❌ Error: VM_HOST secret is not set."
+          echo "👉 Action: Add your server IP address (e.g., 1.2.3.4) as 'VM_HOST' in GitHub Actions Secrets."
           exit 1
         fi
         if [ -z "\${{ secrets.SSH_USER }}" ]; then
-          echo "Error: SSH_USER secret is not set."
+          echo "❌ Error: SSH_USER secret is not set."
+          echo "👉 Action: Add your SSH username (e.g., root or ubuntu) as 'SSH_USER' in GitHub Actions Secrets."
           exit 1
         fi
 
