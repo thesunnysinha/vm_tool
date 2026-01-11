@@ -16,6 +16,7 @@ plugins:
 nav:
   - Home: index.md
   - Usage Guide: usage.md
+  - Pipeline Generator (UI): generator.md
   - API Reference:
       - Runner: reference/runner.md
       - SSH: reference/ssh.md
