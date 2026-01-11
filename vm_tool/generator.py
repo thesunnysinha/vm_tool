@@ -213,7 +213,7 @@ jobs:
 
     def _step_copy_files(self) -> str:
         return """
-      - name: Copy files to EC2
+      - name: Copy docker-compose to EC2
         run: |
           ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \\
             'mkdir -p ~/app'
@@ -221,9 +221,11 @@ jobs:
           scp -i ~/.ssh/deploy_key docker-compose.yml \\
             ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/app/
           
-          rsync -avz -e "ssh -i ~/.ssh/deploy_key" \\
-            --exclude '.git' --exclude 'node_modules' --exclude '.env' \\
-            ./ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/app/"""
+          # Copy any .env files if they exist
+          if [ -f .env.production ]; then
+            scp -i ~/.ssh/deploy_key .env.production \\
+              ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/app/.env
+          fi"""
 
     def _step_create_backup(self) -> str:
         return """
@@ -256,15 +258,25 @@ jobs:
 
     def _step_deploy(self) -> str:
         return """
-      - name: Deploy
+      - name: Deploy with vm_tool (Ansible-based)
         run: |
-          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-            cd ~/app
-            docker-compose pull
-            docker-compose down
-            docker-compose up -d --build
-            sleep 10
-          EOF"""
+          # Create inventory file for Ansible
+          cat > inventory.yml << EOF
+          all:
+            hosts:
+              production:
+                ansible_host: ${{ secrets.EC2_HOST }}
+                ansible_user: ${{ secrets.EC2_USER }}
+                ansible_ssh_private_key_file: ~/.ssh/deploy_key
+          EOF
+          
+          # Deploy using vm_tool (uses Ansible under the hood)
+          vm_tool deploy-docker \\
+            --host ${{ secrets.EC2_HOST }} \\
+            --user ${{ secrets.EC2_USER }} \\
+            --compose-file ~/app/docker-compose.yml \\
+            --inventory inventory.yml \\
+            --force"""
 
     def _step_health_check(self) -> str:
         return f"""
