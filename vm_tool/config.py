@@ -64,12 +64,13 @@ class Config:
         return self._load(self.config_file)
 
     # Profile management
-    def create_profile(self, name: str, **kwargs):
-        """Create a deployment profile."""
+    def create_profile(self, name: str, environment: str = "development", **kwargs):
+        """Create a deployment profile with environment tag."""
         profiles = self._load(self.profiles_file)
-        profiles[name] = kwargs
+        profile_data = {"environment": environment, **kwargs}
+        profiles[name] = profile_data
         self._save(profiles, self.profiles_file)
-        logger.info(f"Created profile: {name}")
+        logger.info(f"Created profile: {name} (environment: {environment})")
 
     def get_profile(self, name: str) -> Optional[Dict[str, Any]]:
         """Get a deployment profile."""

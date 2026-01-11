@@ -53,11 +53,16 @@ def test_create_profile(temp_config_dir):
     """Test creating a deployment profile."""
     config = Config()
     config.create_profile(
-        "staging", host="10.0.1.5", user="deploy", compose_file="docker-compose.yml"
+        "staging",
+        environment="staging",
+        host="10.0.1.5",
+        user="deploy",
+        compose_file="docker-compose.yml",
     )
 
     profile = config.get_profile("staging")
     assert profile == {
+        "environment": "staging",
         "host": "10.0.1.5",
         "user": "deploy",
         "compose_file": "docker-compose.yml",
@@ -67,13 +72,18 @@ def test_create_profile(temp_config_dir):
 def test_list_profiles(temp_config_dir):
     """Test listing all profiles."""
     config = Config()
-    config.create_profile("staging", host="10.0.1.5", user="deploy")
-    config.create_profile("production", host="10.0.2.10", user="prod")
+    config.create_profile(
+        "staging", environment="staging", host="10.0.1.5", user="deploy"
+    )
+    config.create_profile(
+        "production", environment="production", host="10.0.2.10", user="prod"
+    )
 
     profiles = config.list_profiles()
     assert "staging" in profiles
     assert "production" in profiles
     assert profiles["staging"]["host"] == "10.0.1.5"
+    assert profiles["staging"]["environment"] == "staging"
 
 
 def test_delete_profile(temp_config_dir):

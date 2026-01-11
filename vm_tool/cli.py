@@ -37,6 +37,13 @@ def main():
         "create-profile", help="Create a deployment profile"
     )
     create_profile_parser.add_argument("name", type=str, help="Profile name")
+    create_profile_parser.add_argument(
+        "--environment",
+        type=str,
+        default="development",
+        choices=["development", "staging", "production"],
+        help="Environment tag for this profile",
+    )
     create_profile_parser.add_argument("--host", type=str, help="Target host")
     create_profile_parser.add_argument("--user", type=str, help="SSH user")
     create_profile_parser.add_argument(
@@ -176,8 +183,10 @@ def main():
             if args.compose_file:
                 profile_data["compose_file"] = args.compose_file
 
-            config.create_profile(args.name, **profile_data)
-            print(f"✅ Created profile '{args.name}'")
+            config.create_profile(
+                args.name, environment=args.environment, **profile_data
+            )
+            print(f"✅ Created profile '{args.name}' (environment: {args.environment})")
 
         elif args.config_command == "list-profiles":
             profiles = config.list_profiles()
@@ -235,6 +244,20 @@ def main():
                     print(f"❌ Profile '{args.profile}' not found")
                     sys.exit(1)
                 print(f"📋 Using profile: {args.profile}")
+
+                # Safety check for production deployments
+                if profile_data.get("environment") == "production":
+                    if not args.force:
+                        confirm = (
+                            input(
+                                "⚠️  You are deploying to PRODUCTION. Type 'yes' to confirm: "
+                            )
+                            .strip()
+                            .lower()
+                        )
+                        if confirm != "yes":
+                            print("❌ Deployment cancelled")
+                            sys.exit(0)
 
             # Merge profile with CLI args (CLI args take precedence)
             host = args.host or profile_data.get("host")
