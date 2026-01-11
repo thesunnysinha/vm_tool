@@ -53,162 +53,203 @@ Use this tool to generate a GitHub Actions workflow for your project. Fill in th
 </div>
 
 <script>
-const TEMPLATE_BASE = `name: Project Deployment
+const TEMPLATE = `name: Deploy to EC2 with vm_tool
 
 on:
   push:
-    branches: [ (( branch_name )) ]
-  workflow_dispatch:  # Allow manual trigger
+    branches: [ BRANCH_NAME ]
+  workflow_dispatch:
+
+env:
+  EC2_HOST: \${{ secrets.EC2_HOST }}
+  EC2_USER: \${{ secrets.EC2_USER }}
+  APP_PORT: 8000
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '(( python_version ))'
+      - name: Validate Required Secrets
+        run: |
+          echo "🔐 Validating GitHub Secrets..."
+          MISSING_SECRETS=()
+          
+          if [ -z "\${{ secrets.EC2_HOST }}" ]; then
+            MISSING_SECRETS+=("EC2_HOST")
+          fi
+          
+          if [ -z "\${{ secrets.EC2_USER }}" ]; then
+            MISSING_SECRETS+=("EC2_USER")
+          fi
+          
+          if [ -z "\${{ secrets.EC2_SSH_KEY }}" ]; then
+            MISSING_SECRETS+=("EC2_SSH_KEY")
+          fi
+          
+          if [ \${#MISSING_SECRETS[@]} -ne 0 ]; then
+            echo "❌ ERROR: Missing required GitHub Secrets!"
+            echo "Missing: \${MISSING_SECRETS[*]}"
+            echo "See: docs/ssh-key-setup.md"
+            exit 1
+          fi
+          
+          echo "✅ All secrets configured"
 
-    - name: Install vm_tool
-      run: pip install vm-tool
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 'PYTHON_VERSION'
+
+      - name: Install vm_tool
+        run: pip install vm-tool
+
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "\${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H \${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Validate SSH Connection
+        run: |
+          echo "✅ Testing SSH connection..."
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \\
+            \${{ secrets.EC2_USER }}@\${{ secrets.EC2_HOST }} "echo 'Connected'" || {
+            echo "❌ SSH failed! Check docs/ssh-key-setup.md"
+            exit 1
+          }
+
+      - name: Copy docker-compose to EC2
+        run: |
+          ssh -i ~/.ssh/deploy_key \${{ secrets.EC2_USER }}@\${{ secrets.EC2_HOST }} \\
+            'mkdir -p ~/app'
+          
+          scp -i ~/.ssh/deploy_key COMPOSE_FILE \\
+            \${{ secrets.EC2_USER }}@\${{ secrets.EC2_HOST }}:~/app/
+BACKUP_STEP
+DRY_RUN_STEP
+      - name: Deploy with vm_tool (Ansible-based)
+        run: |
+          cat > inventory.yml << EOF
+          all:
+            hosts:
+              production:
+                ansible_host: \${{ secrets.EC2_HOST }}
+                ansible_user: \${{ secrets.EC2_USER }}
+                ansible_ssh_private_key_file: ~/.ssh/deploy_key
+          EOF
+          
+          vm_tool deploy-docker \\
+            --host \${{ secrets.EC2_HOST }} \\
+            --user \${{ secrets.EC2_USER }} \\
+            --compose-file ~/app/COMPOSE_FILE \\
+            --inventory inventory.yml \\
+            --force
+HEALTH_CHECK_STEP
+      - name: Verify deployment
+        run: |
+          ssh -i ~/.ssh/deploy_key \${{ secrets.EC2_USER }}@\${{ secrets.EC2_HOST }} << 'EOF'
+            cd ~/app
+            docker-compose ps
+            docker-compose logs --tail=20
+          EOF
+ROLLBACK_STEP
+      - name: Cleanup old backups
+        if: success()
+        run: |
+          ssh -i ~/.ssh/deploy_key \${{ secrets.EC2_USER }}@\${{ secrets.EC2_HOST }} << 'EOF'
+            cd ~/backups 2>/dev/null || exit 0
+            ls -t *.tar.gz 2>/dev/null | tail -n +6 | xargs rm -f || true
+          EOF
+
+      - name: Send notification
+        if: always()
+        run: |
+          if [ "\${{ job.status }}" == "success" ]; then
+            echo "✅ Deployment successful to \${{ secrets.EC2_HOST }}:\${{ env.APP_PORT }}"
+          else
+            echo "❌ Deployment failed to \${{ secrets.EC2_HOST }}"
+          fi
 `;
 
-const TEMPLATE_LINTING = `
-    - name: Run Linting
-      run: |
-        pip install flake8
-        flake8 .
+const BACKUP_STEP = `
+      - name: Create backup before deployment
+        run: |
+          ssh -i ~/.ssh/deploy_key \${{ secrets.EC2_USER }}@\${{ secrets.EC2_HOST }} << 'EOF'
+            mkdir -p ~/backups
+            if [ -d ~/app ]; then
+              tar -czf ~/backups/backup-$(date +%Y%m%d-%H%M%S).tar.gz -C ~/app . 2>/dev/null || true
+              echo "✅ Backup created"
+            fi
+          EOF
 `;
 
-const TEMPLATE_TESTING = `
-    - name: Run Tests
-      run: |
-        pip install pytest
-        pytest
+const DRY_RUN_STEP = `
+      - name: Dry-run deployment preview
+        run: |
+          echo "🔍 DRY-RUN: Previewing deployment"
+          ssh -i ~/.ssh/deploy_key \${{ secrets.EC2_USER }}@\${{ secrets.EC2_HOST }} << 'EOF'
+            cd ~/app && docker-compose config
+          EOF
 `;
 
-const TEMPLATE_SSH = `
-    - name: Validate Secrets
-      run: |
-        if [ -z "\${{ secrets.SSH_PRIVATE_KEY }}" ]; then
-          echo "❌ Error: SSH_PRIVATE_KEY secret is not set."
-          echo "👉 Action: Run 'cat ~/.ssh/id_rsa' (or your key path) locally, copy the content, and add it as 'SSH_PRIVATE_KEY' in GitHub Actions Secrets."
+const HEALTH_CHECK_STEP = `
+      - name: Health check
+        run: |
+          for i in {1..30}; do
+            if curl -f http://\${{ secrets.EC2_HOST }}:8000/health 2>/dev/null; then
+              echo "✅ Health check passed"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "❌ Health check failed"
           exit 1
-        fi
-        if [ -z "\${{ secrets.VM_HOST }}" ]; then
-          echo "❌ Error: VM_HOST secret is not set."
-          echo "👉 Action: Add your server IP address (e.g., 1.2.3.4) as 'VM_HOST' in GitHub Actions Secrets."
-          exit 1
-        fi
-        if [ -z "\${{ secrets.SSH_USER }}" ]; then
-          echo "❌ Error: SSH_USER secret is not set."
-          echo "👉 Action: Add your SSH username (e.g., root or ubuntu) as 'SSH_USER' in GitHub Actions Secrets."
-          exit 1
-        fi
-
-    - name: Setup SSH Key
-      run: |
-        mkdir -p ~/.ssh
-        echo "\${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
-        ssh-keyscan -H \${{ secrets.VM_HOST }} >> ~/.ssh/known_hosts
 `;
 
-const TEMPLATE_K8S = `
-    - name: Setup Kubernetes (K3s)
-      run: |
-        echo "Setting up K3s..."
-        # vm_tool setup-k8s --inventory inventory.yml
-`;
-
-const TEMPLATE_MONITORING = `
-    - name: Setup Observability (Prometheus/Grafana)
-      if: success()
-      run: |
-        echo "Setting up Monitoring..."
-        # vm_tool setup-monitoring --inventory inventory.yml
-`;
-
-const TEMPLATE_DOCKER = `
-    - name: Deploy with Docker Compose
-      run: |
-        echo "Deploying with Docker Compose..."
-        vm_tool deploy-docker --compose-file (( docker_compose_file )) (( env_file_flag ))(( deploy_command_flag ))--host \${{ secrets.VM_HOST }} --user \${{ secrets.SSH_USER }}
+const ROLLBACK_STEP = `
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          echo "⚠️  Rolling back..."
+          ssh -i ~/.ssh/deploy_key \${{ secrets.EC2_USER }}@\${{ secrets.EC2_HOST }} << 'EOF'
+            BACKUP=$(ls -t ~/backups/*.tar.gz 2>/dev/null | head -1)
+            if [ -n "$BACKUP" ]; then
+              cd ~/app && tar -xzf $BACKUP
+              docker-compose up -d
+              echo "✅ Rolled back"
+            fi
+          EOF
 `;
 
 function generatePipeline() {
     const branch = document.getElementById('branch_name').value;
     const pythonVersion = document.getElementById('python_version').value;
-    const linkting = document.getElementById('run_linting').checked;
-    const tests = document.getElementById('run_tests').checked;
-    const monitoring = document.getElementById('setup_monitoring').checked;
-    const deployType = document.querySelector('input[name="deployment_type"]:checked').value;
     const composeFile = document.getElementById('docker_compose_file').value;
-    const envFile = document.getElementById('env_file').value.trim();
-    const deployCommand = document.getElementById('deploy_command').value.trim();
+    const enableBackup = document.getElementById('enable_backup').checked;
+    const enableDryRun = document.getElementById('enable_dry_run').checked;
+    const enableHealthCheck = document.getElementById('enable_health_check').checked;
+    const enableRollback = document.getElementById('enable_rollback').checked;
 
-    let output = TEMPLATE_BASE
-        .replace(/\(\( branch_name \)\)/g, branch)
-        .replace(/\(\( python_version \)\)/g, pythonVersion);
+    let output = TEMPLATE
+        .replace(/BRANCH_NAME/g, branch)
+        .replace(/PYTHON_VERSION/g, pythonVersion)
+        .replace(/COMPOSE_FILE/g, composeFile);
     
-    if (linkting) output += TEMPLATE_LINTING;
-    if (tests) output += TEMPLATE_TESTING;
-    
-    output += TEMPLATE_SSH;
-    
-    if (deployType === 'kubernetes') {
-        output += TEMPLATE_K8S;
-    } else if (deployType === 'custom') {
-         // Re-use docker template for custom command structure, but minimal
-         let dockerOutput = TEMPLATE_DOCKER.replace(/\(\( docker_compose_file \)\)/g, "docker-compose.yml"); // Dummy default
-         dockerOutput = dockerOutput.replace(/\(\( env_file_flag \)\)/g, "");
-         dockerOutput = dockerOutput.replace(/\(\( deploy_command_flag \)\)/g, `--deploy-command "${deployCommand}" `);
-         output += dockerOutput;
-    } else {
-        // Docker Standard
-        let dockerOutput = TEMPLATE_DOCKER.replace(/\(\( docker_compose_file \)\)/g, composeFile);
-        
-        if (envFile) {
-            dockerOutput = dockerOutput.replace(/\(\( env_file_flag \)\)/g, `--env-file ${envFile} `);
-        } else {
-             dockerOutput = dockerOutput.replace(/\(\( env_file_flag \)\)/g, "");
-        }
-        
-        // Ensure no custom command flag
-        dockerOutput = dockerOutput.replace(/\(\( deploy_command_flag \)\)/g, "");
-        
-        output += dockerOutput;
-    }
-
-    if (monitoring) output += TEMPLATE_MONITORING;
+    output = output.replace(/BACKUP_STEP/g, enableBackup ? BACKUP_STEP : '');
+    output = output.replace(/DRY_RUN_STEP/g, enableDryRun ? DRY_RUN_STEP : '');
+    output = output.replace(/HEALTH_CHECK_STEP/g, enableHealthCheck ? HEALTH_CHECK_STEP : '');
+    output = output.replace(/ROLLBACK_STEP/g, enableRollback ? ROLLBACK_STEP : '');
 
     document.getElementById('yamlOutput').textContent = output;
     document.getElementById('output').style.display = 'block';
     
-    // Trigger syntax highlighting if available (MkDocs dependent)
     if (window.hljs) {
         hljs.highlightElement(document.getElementById('yamlOutput'));
-    }
-}
-// ... copy/download functions ...
-
-function toggleDeploymentOptions() {
-    const deployType = document.querySelector('input[name="deployment_type"]:checked').value;
-    const dockerOptions = document.getElementById('docker_options');
-    const customOptions = document.getElementById('custom_options');
-
-    if (deployType === 'docker') {
-        dockerOptions.style.display = 'block';
-        customOptions.style.display = 'none';
-    } else if (deployType === 'custom') {
-        dockerOptions.style.display = 'none';
-        customOptions.style.display = 'block';
-    } else {
-        dockerOptions.style.display = 'none';
-        customOptions.style.display = 'none';
     }
 }
 
@@ -230,9 +271,5 @@ function downloadYaml() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-}
-
-function toggleMonitoring() {
-    // Optional: could enforce monitoring only for k8s if we wanted logic here
 }
 </script>
