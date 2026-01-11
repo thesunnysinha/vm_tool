@@ -95,6 +95,35 @@ def main():
     )
     drift_parser.add_argument("--user", type=str, default="ubuntu", help="SSH user")
 
+    # Backup commands
+    backup_parser = subparsers.add_parser(
+        "backup", help="Backup and restore operations"
+    )
+    backup_subparsers = backup_parser.add_subparsers(dest="backup_command")
+
+    # backup create
+    create_backup_parser = backup_subparsers.add_parser(
+        "create", help="Create a backup"
+    )
+    create_backup_parser.add_argument("--host", type=str, required=True)
+    create_backup_parser.add_argument("--user", type=str, default="ubuntu")
+    create_backup_parser.add_argument(
+        "--paths", type=str, nargs="+", required=True, help="Paths to backup"
+    )
+
+    # backup list
+    list_backup_parser = backup_subparsers.add_parser("list", help="List backups")
+    list_backup_parser.add_argument("--host", type=str, help="Filter by host")
+
+    # backup restore
+    restore_backup_parser = backup_subparsers.add_parser(
+        "restore", help="Restore a backup"
+    )
+    restore_backup_parser.add_argument(
+        "--id", type=str, required=True, help="Backup ID"
+    )
+    restore_backup_parser.add_argument("--host", type=str, required=True)
+    restore_backup_parser.add_argument("--user", type=str, default="ubuntu")
     # K8s Setup command
     k8s_parser = subparsers.add_parser(
         "setup-k8s", help="Install K3s Kubernetes cluster"
@@ -338,6 +367,44 @@ def main():
                 print()
             print(f"Found {len(drifts)} file(s) with drift")
             sys.exit(1)
+
+    elif args.command == "backup":
+        from vm_tool.backup import BackupManager
+
+        manager = BackupManager()
+
+        if args.backup_command == "create":
+            try:
+                backup_id = manager.create_backup(
+                    host=args.host, user=args.user, paths=args.paths
+                )
+                print(f"✅ Backup created: {backup_id}")
+            except Exception as e:
+                print(f"❌ Backup failed: {e}")
+                sys.exit(1)
+
+        elif args.backup_command == "list":
+            backups = manager.list_backups(host=args.host)
+            if not backups:
+                print("No backups found")
+            else:
+                print(f"\\n📦 Available Backups ({len(backups)}):\\n")
+                for backup in backups:
+                    size_mb = backup["size"] / (1024 * 1024)
+                    print(f"  {backup['id']}")
+                    print(f"    Host: {backup['host']}")
+                    print(f"    Time: {backup['timestamp']}")
+                    print(f"    Size: {size_mb:.2f} MB")
+                    print(f"    Paths: {', '.join(backup['paths'])}")
+                    print()
+
+        elif args.backup_command == "restore":
+            try:
+                manager.restore_backup(args.id, args.host, args.user)
+                print(f"✅ Backup restored: {args.id}")
+            except Exception as e:
+                print(f"❌ Restore failed: {e}")
+                sys.exit(1)
 
     elif args.command == "setup-k8s":
         try:
