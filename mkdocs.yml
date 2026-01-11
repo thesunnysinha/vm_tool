@@ -1,4 +1,5 @@
 site_name: VM Tool Documentation
+site_url: https://vm-tool.sunnysinha.online/
 theme:
   name: material
   palette:

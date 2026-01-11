@@ -54,7 +54,7 @@ setup(
     include_package_data=True,
     url="https://github.com/thesunnysinha/vm_tool",
     project_urls={
-        "Documentation": "https://github.com/thesunnysinha/vm_tool/README.md",
+        "Documentation": "https://vm-tool.sunnysinha.online/",
         "Source": "https://github.com/thesunnysinha/vm_tool",
         "Tracker": "https://github.com/thesunnysinha/vm_tool/issues",
     },

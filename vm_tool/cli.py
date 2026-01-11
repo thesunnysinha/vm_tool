@@ -111,8 +111,38 @@ def main():
         try:
             from vm_tool.generator import PipelineGenerator
 
+            print("🚀 Configuring your CI/CD Pipeline...")
+
+            # Interactive prompts
+            branch = (
+                input("Enter the branch to trigger deployment [main]: ").strip()
+                or "main"
+            )
+            provider = (
+                input("Enter cloud provider (aws/other) [aws]: ").strip() or "aws"
+            )
+
+            region = "us-east-1"
+            instance_type = "t2.small"
+
+            if provider == "aws":
+                region = input("Enter AWS Region [us-east-1]: ").strip() or "us-east-1"
+                instance_type = (
+                    input("Enter Instance Type [t2.small]: ").strip() or "t2.small"
+                )
+
+            context = {
+                "branch_name": branch,
+                "provider": provider,
+                "aws_region": region,
+                "instance_type": instance_type,
+            }
+
             generator = PipelineGenerator()
-            generator.generate(platform=args.platform)
+            generator.generate(platform=args.platform, context=context)
+            print(
+                f"✅ Pipeline generated for branch '{branch}' using provider '{provider}'."
+            )
         except Exception as e:
             print(f"Error: {e}")
             sys.exit(1)

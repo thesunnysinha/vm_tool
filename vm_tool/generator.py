@@ -13,7 +13,7 @@ class PipelineGenerator:
 
 on:
   push:
-    branches: [ main ]
+    branches: [ (( branch_name )) ]
   workflow_dispatch:  # Allow manual trigger
 
 jobs:
@@ -44,11 +44,11 @@ jobs:
         # Provider credentials (example for AWS)
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_DEFAULT_REGION: 'us-east-1'
+        AWS_DEFAULT_REGION: '(( aws_region ))'
       run: |
         echo "Provisioning infrastructure..."
         # Uncomment to enable provisioning
-        # vm_tool provision --provider aws --action apply --vars region=us-east-1 instance_type=t2.small
+        # vm_tool provision --provider (( provider )) --action apply --vars region=(( aws_region )) instance_type=(( instance_type ))
 
     - name: Setup Kubernetes (K3s)
       if: success()
@@ -63,16 +63,32 @@ jobs:
         # vm_tool setup-monitoring --inventory inventory.yml
 """
 
-    def generate(self, platform: str = "github"):
+    def generate(self, platform: str = "github", context: dict = None):
         """Generate pipeline configuration."""
         if platform != "github":
             raise NotImplementedError(f"Platform {platform} not supported yet.")
+
+        if context is None:
+            context = {
+                "branch_name": "main",
+                "provider": "aws",
+                "aws_region": "us-east-1",
+                "instance_type": "t2.small",
+            }
+
+        from jinja2 import Environment, BaseLoader
+
+        env = Environment(
+            loader=BaseLoader(), variable_start_string="((", variable_end_string="))"
+        )
+        template = env.from_string(self.GITHUB_TEMPLATE)
+        rendered_content = template.render(**context)
 
         workflow_dir = ".github/workflows"
         os.makedirs(workflow_dir, exist_ok=True)
 
         file_path = os.path.join(workflow_dir, "deploy.yml")
         with open(file_path, "w") as f:
-            f.write(self.GITHUB_TEMPLATE)
+            f.write(rendered_content)
 
         logger.info(f"Generated GitHub Actions workflow at {file_path}")
