@@ -66,6 +66,9 @@ def main():
         "--host", type=str, help="Target host IP/domain (generates dynamic inventory)"
     )
     docker_parser.add_argument("--user", type=str, help="SSH username for target host")
+    docker_parser.add_argument(
+        "--env-file", type=str, help="Path to env file (optional)"
+    )
 
     # Pipeline Generator command
     pipe_parser = subparsers.add_parser(
@@ -138,6 +141,7 @@ def main():
                 inventory_file=args.inventory,
                 host=args.host,
                 user=args.user,
+                env_file=args.env_file,
             )
         except Exception as e:
             print(f"Error: {e}")
@@ -183,6 +187,7 @@ def main():
             )
 
             docker_compose_file = "docker-compose.yml"
+            env_file = None
             if deployment_type == "docker":
                 docker_compose_file = (
                     input(
@@ -190,6 +195,11 @@ def main():
                     ).strip()
                     or "docker-compose.yml"
                 )
+                env_file_input = input(
+                    "Enter Env file path (optional, press Enter to skip): "
+                ).strip()
+                if env_file_input:
+                    env_file = env_file_input
 
             context = {
                 "branch_name": branch,
@@ -199,6 +209,7 @@ def main():
                 "setup_monitoring": setup_monitoring,
                 "deployment_type": deployment_type,
                 "docker_compose_file": docker_compose_file,
+                "env_file": env_file,
             }
 
             generator = PipelineGenerator()

@@ -296,6 +296,7 @@ class SetupRunner:
         inventory_file="inventory.yml",
         host: str = None,
         user: str = None,
+        env_file: str = None,
     ):
         """Runs the Docker Compose deployment."""
 
@@ -343,6 +344,10 @@ class SetupRunner:
             "DEPLOY_MODE": "push",
             "SOURCE_PATH": os.getcwd(),  # Current working directory where vm_tool is run
         }
+
+        if env_file:
+            extravars["ENV_FILE_PATH"] = env_file
+
         # reusing main.yml or a specific deploy playbook.
         # Assuming main.yml handles docker deploy if DOCKER_COMPOSE_FILE_PATH is set.
         self._run_ansible_playbook(extravars, target_inventory)

@@ -26,8 +26,8 @@
         src: "{{ SOURCE_PATH }}/{{ DOCKER_COMPOSE_FILE_PATH }}"
         dest: "{{ project_dest_dir }}/{{ DOCKER_COMPOSE_FILE_PATH }}"
 
-    - name: Copy .env file
+    - name: Copy Env file
       copy:
-        src: "{{ SOURCE_PATH }}/.env"
-        dest: "{{ project_dest_dir }}/.env"
+        src: "{{ SOURCE_PATH }}/{{ ENV_FILE_PATH | default('.env') }}"
+        dest: "{{ project_dest_dir }}/{{ ENV_FILE_PATH | default('.env') }}"
       failed_when: false

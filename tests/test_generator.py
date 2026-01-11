@@ -88,8 +88,11 @@ def test_generate_github_pipeline_docker(mock_fs):
         "setup_monitoring": False,
         "run_tests": False,
         "setup_monitoring": False,
+        "run_tests": False,
+        "setup_monitoring": False,
         "deployment_type": "docker",
         "docker_compose_file": "production.yml",
+        "env_file": ".env.prod",
     }
 
     generator = PipelineGenerator()
@@ -101,6 +104,7 @@ def test_generate_github_pipeline_docker(mock_fs):
 
     assert "vm_tool deploy-docker" in content
     assert "--compose-file production.yml" in content
+    assert "--env-file .env.prod" in content
     assert "--host ${{ secrets.VM_HOST }}" in content
     assert "SSH_USER" in content
     assert "vm_tool setup-k8s" not in content

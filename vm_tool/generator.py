@@ -78,7 +78,7 @@ jobs:
     - name: Deploy with Docker Compose
       run: |
         echo "Deploying with Docker Compose..."
-        vm_tool deploy-docker --compose-file (( docker_compose_file )) --host ${{ secrets.VM_HOST }} --user ${{ secrets.SSH_USER }}
+        vm_tool deploy-docker --compose-file (( docker_compose_file )) {% if env_file %}--env-file (( env_file )) {% endif %}--host ${{ secrets.VM_HOST }} --user ${{ secrets.SSH_USER }}
     {% endif %}
 
     {% if setup_monitoring %}
@@ -104,6 +104,7 @@ jobs:
                 "setup_monitoring": False,
                 "deployment_type": "docker",
                 "docker_compose_file": "docker-compose.yml",
+                "env_file": None,
             }
 
         from jinja2 import Environment, BaseLoader
