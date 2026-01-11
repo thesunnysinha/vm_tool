@@ -1,355 +1,424 @@
 # Usage Guide
 
-Complete guide to using vm_tool for production deployments.
+Complete guide to using vm_tool for deployment automation.
 
 ---
 
-## Quick Start
+## Installation
 
 ```bash
-# Install
 pip install vm-tool
-
-# Create a profile
-vm_tool config create-profile production \
-  --environment production \
-  --host 10.0.2.10 \
-  --user ubuntu
-
-# Deploy
-vm_tool deploy-docker --profile production
 ```
 
 ---
 
-## Configuration Management
+## CLI Commands
 
-### Creating Profiles
-
-```bash
-# Development profile
-vm_tool config create-profile dev \
-  --environment development \
-  --host 192.168.1.100 \
-  --user ubuntu \
-  --compose-file docker-compose.dev.yml
-
-# Staging profile
-vm_tool config create-profile staging \
-  --environment staging \
-  --host 10.0.1.5 \
-  --user deploy
-
-# Production profile
-vm_tool config create-profile prod \
-  --environment production \
-  --host 10.0.2.10 \
-  --user prod
-```
-
-### Managing Configuration
+### Configuration Management
 
 ```bash
-# Set defaults
+# Set configuration
 vm_tool config set default-host 192.168.1.100
 vm_tool config set default-user ubuntu
 
-# Get values
+# Get configuration
 vm_tool config get default-host
 
-# List all config
+# List all configuration
 vm_tool config list
+
+# Unset configuration
+vm_tool config unset default-host
+
+# Create deployment profile
+vm_tool config create-profile production \
+  --environment production \
+  --host 10.0.2.10 \
+  --user ubuntu \
+  --compose-file docker-compose.prod.yml
 
 # List profiles
 vm_tool config list-profiles
 
 # Delete profile
-vm_tool config delete-profile old-profile
+vm_tool config delete-profile staging
 ```
 
 ---
 
-## Docker Deployment
-
-### Basic Deployment
+### Docker Deployment
 
 ```bash
-# Deploy to specific host
+# Basic deployment
 vm_tool deploy-docker \
   --host 192.168.1.100 \
   --user ubuntu \
   --compose-file docker-compose.yml
 
-# Deploy using profile
+# Using profile
 vm_tool deploy-docker --profile production
-```
 
-### Deployment with Health Checks
-
-```bash
-# Port check
-vm_tool deploy-docker \
-  --profile production \
-  --health-port 8000
-
-# HTTP endpoint check
-vm_tool deploy-docker \
-  --profile production \
-  --health-url http://10.0.2.10:8000/health
-
-# Custom health check
-vm_tool deploy-docker \
-  --profile production \
-  --health-check "docker ps | grep web"
-
-# Multiple checks
+# With health checks
 vm_tool deploy-docker \
   --profile production \
   --health-port 8000 \
-  --health-url http://10.0.2.10:8000/api/status \
-  --health-check "curl -f http://localhost:8000/ready"
-```
+  --health-url http://192.168.1.100:8000/health
 
-### Dry-Run Mode
+# With environment file
+vm_tool deploy-docker \
+  --profile production \
+  --env-file .env.production
 
-Preview deployment without making changes:
-
-```bash
-vm_tool deploy-docker --profile production --dry-run
-```
-
-Output:
-
-```
-🔍 DRY-RUN MODE - No changes will be made
-
-📋 Deployment Plan:
-   Target Host: 10.0.2.10
-   SSH User: prod
-   Compose File: docker-compose.yml
-   Inventory: inventory.yml
-
-📄 Compose File Contents (docker-compose.yml):
-     1 | version: '3'
-     2 | services:
-     3 |   web:
-     4 |     image: nginx:latest
-     ...
-
-✅ Dry-run complete. Use without --dry-run to deploy.
-```
-
-### Force Redeployment
-
-```bash
-# Force redeploy even if no changes
+# Force redeployment (skip idempotency check)
 vm_tool deploy-docker --profile production --force
+
+# Dry-run (preview only)
+vm_tool deploy-docker --profile production --dry-run
+
+# Custom deployment command
+vm_tool deploy-docker \
+  --host IP \
+  --user USER \
+  --deploy-command "./custom-deploy.sh"
 ```
 
 ---
 
-## Deployment History & Rollback
-
-### View History
+### Deployment History & Rollback
 
 ```bash
-# All deployments
-vm_tool history
+# View deployment history
+vm_tool history --host 192.168.1.100
 
-# Filter by host
-vm_tool history --host 10.0.2.10
+# Limit results
+vm_tool history --host 192.168.1.100 --limit 5
 
-# Show more entries
-vm_tool history --host 10.0.2.10 --limit 20
-```
-
-Output:
-
-```
-📜 Deployment History (showing 3 deployments):
-
-✅ 20260111_195500 - 2026-01-11T19:55:00
-   Host: 10.0.2.10
-   Service: default
-   Compose: docker-compose.yml
-   Git: a1b2c3d4
-
-✅ 20260111_143000 - 2026-01-11T14:30:00
-   Host: 10.0.2.10
-   Service: default
-   Compose: docker-compose.yml
-   Git: e5f6g7h8
-```
-
-### Rollback
-
-```bash
 # Rollback to previous deployment
-vm_tool rollback --host 10.0.2.10
+vm_tool rollback --host 192.168.1.100
 
 # Rollback to specific deployment
-vm_tool rollback --host 10.0.2.10 --to 20260111_143000
+vm_tool rollback --host 192.168.1.100 --to DEPLOYMENT_ID
 ```
 
 ---
 
-## Drift Detection
-
-Check for manual configuration changes:
+### Drift Detection
 
 ```bash
-vm_tool drift-check --host 10.0.2.10 --user ubuntu
-```
-
-Output:
-
-```
-⚠️  Drift Detected on 10.0.2.10:
-
-🔄 /etc/nginx/nginx.conf
-   Status: modified
-   Expected: a1b2c3d4e5f6g7h8...
-   Actual: x9y8z7w6v5u4t3s2...
-
-❌ /app/config.json
-   Status: deleted
-   Expected: 1a2b3c4d5e6f7g8h...
-
-Found 2 file(s) with drift
-```
-
----
-
-## Backup & Restore
-
-### Create Backup
-
-```bash
-vm_tool backup create \
-  --host 10.0.2.10 \
-  --user ubuntu \
-  --paths /app /etc/nginx /var/www
-```
-
-### List Backups
-
-```bash
-# All backups
-vm_tool backup list
-
-# Filter by host
-vm_tool backup list --host 10.0.2.10
-```
-
-Output:
-
-```
-📦 Available Backups (3):
-
-  20260111_200000
-    Host: 10.0.2.10
-    Time: 2026-01-11T20:00:00
-    Size: 45.32 MB
-    Paths: /app, /etc/nginx
-
-  20260111_150000
-    Host: 10.0.2.10
-    Time: 2026-01-11T15:00:00
-    Size: 42.18 MB
-    Paths: /app, /etc/nginx
-```
-
-### Restore Backup
-
-```bash
-vm_tool backup restore \
-  --id 20260111_200000 \
-  --host 10.0.2.10 \
+# Check for configuration drift
+vm_tool drift-check \
+  --host 192.168.1.100 \
   --user ubuntu
 ```
 
 ---
 
-## Pipeline Generation
-
-Generate GitHub Actions workflow:
+### Backup & Restore
 
 ```bash
+# Create backup
+vm_tool backup create \
+  --host 192.168.1.100 \
+  --user ubuntu \
+  --paths /app /etc/nginx /var/www
+
+# List backups
+vm_tool backup list
+
+# List backups for specific host
+vm_tool backup list --host 192.168.1.100
+
+# Restore backup
+vm_tool backup restore \
+  --id BACKUP_ID \
+  --host 192.168.1.100 \
+  --user ubuntu
+```
+
+---
+
+### Pipeline Generation
+
+```bash
+# Generate GitHub Actions workflow (default)
+vm_tool generate-pipeline
+
+# With all features
 vm_tool generate-pipeline \
   --platform github \
   --strategy docker \
+  --health-checks \
+  --backup \
+  --rollback \
+  --drift-detection \
+  --dry-run-step \
   --monitoring
+
+# Custom health check
+vm_tool generate-pipeline \
+  --health-port 3000 \
+  --health-url "http://\${{ secrets.EC2_HOST }}:3000/api/health"
+
+# Custom output path
+vm_tool generate-pipeline \
+  --output .github/workflows/production.yml
+
+# Minimal pipeline
+vm_tool generate-pipeline \
+  --no-backup \
+  --no-rollback \
+  --no-health-checks
 ```
 
 ---
 
-## Logging & Debugging
-
-### Verbose Mode
+### SSH Management
 
 ```bash
-vm_tool --verbose deploy-docker --profile production
-```
+# Generate SSH configuration
+vm_tool generate-ssh-config \
+  --host 192.168.1.100 \
+  --user ubuntu \
+  --key-path ~/.ssh/id_rsa
 
-### Debug Mode
+# Validate SSH connection
+vm_tool validate-ssh \
+  --host 192.168.1.100 \
+  --user ubuntu
 
-```bash
-vm_tool --debug deploy-docker --profile production
-```
-
-Output includes detailed logging:
-
-```
-🐛 Debug logging enabled
-DEBUG: Loading config from /Users/user/.vm_tool/config.json
-DEBUG: Computing hash of docker-compose.yml
-INFO: Deployment is up-to-date
+# Validate secrets
+vm_tool validate-secrets
 ```
 
 ---
 
-## Best Practices
-
-### 1. Always Use Profiles
+### VM Setup (Ansible-based)
 
 ```bash
-# ✅ Good
-vm_tool deploy-docker --profile production
+# Setup single VM
+vm_tool setup \
+  --github-username USER \
+  --github-token TOKEN \
+  --github-project-url https://github.com/user/repo \
+  --dockerhub-username USER \
+  --dockerhub-password PASS
 
-# ❌ Avoid
-vm_tool deploy-docker --host IP --user USER ...
+# Setup cloud VMs
+vm_tool setup-cloud \
+  --ssh-configs config.json
+
+# Setup Kubernetes (K3s) - Coming Soon
+vm_tool setup-k8s --inventory inventory.yml
+
+# Setup Monitoring - Coming Soon
+vm_tool setup-monitoring --inventory inventory.yml
 ```
 
-### 2. Dry-Run First
+---
+
+### Global Options
 
 ```bash
-# Always preview production deployments
-vm_tool deploy-docker --profile production --dry-run
-vm_tool deploy-docker --profile production
+# Verbose output
+vm_tool --verbose deploy-docker --profile prod
+
+# Debug logging
+vm_tool --debug deploy-docker --profile prod
+
+# Version
+vm_tool --version
 ```
 
-### 3. Enable Health Checks
+---
+
+## Features
+
+### 1. Idempotent Deployments
+
+Deployments are tracked by SHA256 hash. Only redeploys if changes detected.
 
 ```bash
-vm_tool deploy-docker \
-  --profile production \
+# First run: deploys
+vm_tool deploy-docker --profile prod
+
+# Second run: skips (no changes)
+vm_tool deploy-docker --profile prod
+
+# Force redeploy
+vm_tool deploy-docker --profile prod --force
+```
+
+### 2. Health Checks
+
+Verify deployments with multiple check types:
+
+```bash
+# Port check
+vm_tool deploy-docker --profile prod --health-port 8000
+
+# HTTP endpoint check
+vm_tool deploy-docker --profile prod \
+  --health-url http://IP:8000/health
+
+# Both
+vm_tool deploy-docker --profile prod \
   --health-port 8000 \
   --health-url http://IP:8000/health
 ```
 
-### 4. Regular Backups
+### 3. Multi-Environment Safety
+
+Production deployments require confirmation:
 
 ```bash
-# Before major deployments
-vm_tool backup create --host IP --paths /app /etc
-vm_tool deploy-docker --profile production
+# Creates production profile
+vm_tool config create-profile prod --environment production
+
+# Deployment prompts for confirmation
+vm_tool deploy-docker --profile prod
+
+# Skip confirmation
+vm_tool deploy-docker --profile prod --force
 ```
 
-### 5. Monitor Drift
+### 4. Deployment History
+
+All deployments are recorded with:
+
+- Timestamp
+- Git commit (if available)
+- Deployment status
+- Configuration used
 
 ```bash
-# Weekly drift checks
-vm_tool drift-check --host IP
+vm_tool history --host IP
+```
+
+### 5. One-Command Rollback
+
+```bash
+# Rollback to previous
+vm_tool rollback --host IP
+
+# Rollback to specific deployment
+vm_tool rollback --host IP --to DEPLOYMENT_ID
+```
+
+### 6. Drift Detection
+
+Detect manual server changes:
+
+```bash
+vm_tool drift-check --host IP --user USER
+```
+
+### 7. Backup & Restore
+
+Automated disaster recovery:
+
+```bash
+# Backup
+vm_tool backup create --host IP --paths /app
+
+# Restore
+vm_tool backup restore --id ID --host IP
+```
+
+### 8. Dry-Run
+
+Preview deployments:
+
+```bash
+vm_tool deploy-docker --profile prod --dry-run
+```
+
+### 9. Configuration Profiles
+
+Save deployment configurations:
+
+```bash
+vm_tool config create-profile prod \
+  --environment production \
+  --host 10.0.2.10 \
+  --user ubuntu \
+  --compose-file docker-compose.prod.yml
+
+vm_tool deploy-docker --profile prod
+```
+
+---
+
+## Ansible Integration
+
+vm_tool uses Ansible under the hood for production-grade deployments.
+
+**Playbooks**: `vm_tool/vm_setup/`
+
+- `main.yml` - Main playbook
+- `push_code.yml` - Code deployment
+
+**Inventory**: Auto-generated or custom
+
+**Benefits**:
+
+- Idempotent operations
+- Proper error handling
+- State tracking
+- Rollback support
+
+---
+
+## Configuration Files
+
+### Config Location
+
+`~/.vm_tool/config.json`
+
+### State Files
+
+- Deployment state: `~/.vm_tool/deployment_state.json`
+- History: `~/.vm_tool/deployment_history.json`
+- Drift state: `~/.vm_tool/drift_state.json`
+- Backups: `~/.vm_tool/backups.json`
+
+---
+
+## Examples
+
+### Production Deployment Workflow
+
+```bash
+# 1. Create profile
+vm_tool config create-profile prod \
+  --environment production \
+  --host 10.0.2.10 \
+  --user ubuntu
+
+# 2. Dry-run
+vm_tool deploy-docker --profile prod --dry-run
+
+# 3. Deploy with health checks
+vm_tool deploy-docker --profile prod \
+  --health-port 8000 \
+  --health-url http://10.0.2.10:8000/health
+
+# 4. Verify
+vm_tool history --host 10.0.2.10
+
+# 5. If issues, rollback
+vm_tool rollback --host 10.0.2.10
+```
+
+### CI/CD Integration
+
+```bash
+# Generate workflow
+vm_tool generate-pipeline
+
+# Commit and push
+git add .github/workflows/deploy.yml
+git commit -m "Add deployment workflow"
+git push origin main
 ```
 
 ---
@@ -358,61 +427,42 @@ vm_tool drift-check --host IP
 
 ### Deployment Fails
 
-1. Check with dry-run: `vm_tool deploy-docker --profile prod --dry-run`
-2. Enable debug: `vm_tool --debug deploy-docker --profile prod`
-3. Verify SSH access: `ssh user@host`
-4. Check compose file: `docker-compose config`
+```bash
+# Check history
+vm_tool history --host IP
 
-### Health Checks Fail
+# Rollback
+vm_tool rollback --host IP
 
-1. Verify port is open: `nc -zv host port`
-2. Check service logs: `ssh user@host docker-compose logs`
-3. Test endpoint manually: `curl http://host:port/health`
+# Try with verbose logging
+vm_tool --verbose deploy-docker --profile prod
+```
 
-### Rollback Issues
+### Health Check Fails
 
-1. View history: `vm_tool history --host IP`
-2. Verify backup exists: `vm_tool backup list --host IP`
-3. Check SSH access and permissions
+```bash
+# Test endpoint manually
+curl http://IP:8000/health
+
+# Deploy without health checks
+vm_tool deploy-docker --profile prod --no-health-check
+```
+
+### SSH Issues
+
+```bash
+# Validate SSH
+vm_tool validate-ssh --host IP --user USER
+
+# Check SSH config
+cat ~/.ssh/config
+```
 
 ---
 
-## Advanced Usage
+## Next Steps
 
-### Custom Deployment Commands
-
-```bash
-vm_tool deploy-docker \
-  --profile production \
-  --deploy-command "docker-compose up -d --build"
-```
-
-### Environment Files
-
-```bash
-vm_tool deploy-docker \
-  --profile production \
-  --env-file .env.production
-```
-
-### Production Deployment Workflow
-
-```bash
-# 1. Create backup
-vm_tool backup create --host IP --paths /app
-
-# 2. Dry-run
-vm_tool deploy-docker --profile prod --dry-run
-
-# 3. Deploy with health checks
-vm_tool deploy-docker \
-  --profile prod \
-  --health-port 8000 \
-  --health-url http://IP:8000/health
-
-# 4. Verify deployment
-vm_tool history --host IP
-
-# 5. Check for drift
-vm_tool drift-check --host IP
-```
+- [Features Documentation](features.md)
+- [Pipeline Generator](generator.md)
+- [EC2 Deployment Guide](ec2-github-actions-guide.md)
+- [SSH Key Setup](ssh-key-setup.md)
