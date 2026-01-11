@@ -10,51 +10,33 @@ Use this tool to generate a GitHub Actions workflow for your project. Fill in th
         </div>
         <div style="flex: 1;">
             <label for="python_version" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Python Version</label>
-            <input type="text" id="python_version" name="python_version" value="3.12" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
-        </div>
-    </div>
-
-    <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
-        <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <input type="checkbox" id="run_linting" name="run_linting">
-            <label for="run_linting" style="cursor: pointer;">Run Linting (flake8)</label>
-        </div>
-        <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <input type="checkbox" id="run_tests" name="run_tests">
-            <label for="run_tests" style="cursor: pointer;">Run Tests (pytest)</label>
-        </div>
-        <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <input type="checkbox" id="setup_monitoring" name="setup_monitoring">
-            <label for="setup_monitoring" style="cursor: pointer;">Include Monitoring (Prometheus/Grafana)</label>
+            <input type="text" id="python_version" name="python_version" value="3.11" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
         </div>
     </div>
 
     <div style="margin-top: 1rem;">
-        <label style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Deployment Strategy</label>
-        <div>
-            <input type="radio" id="deploy_docker" name="deployment_type" value="docker" checked onchange="toggleDeploymentOptions()">
-            <label for="deploy_docker">Docker Compose (Zero-Touch)</label>
-        </div>
-        <div style="margin-top: 0.5rem;">
-            <input type="radio" id="deploy_custom" name="deployment_type" value="custom" onchange="toggleDeploymentOptions()">
-            <label for="deploy_custom">Custom Deployment Command</label>
-        </div>
-        <div style="margin-top: 0.5rem; opacity: 0.6;">
-            <input type="radio" id="deploy_k8s" name="deployment_type" value="kubernetes" disabled onchange="toggleDeploymentOptions()">
-            <label for="deploy_k8s" style="cursor: not-allowed;">Kubernetes (K3s) - <em>Coming Soon</em></label>
-        </div>
-    </div>
-
-    <div id="docker_options" style="margin-top: 1rem;">
         <label for="docker_compose_file" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Docker Compose File</label>
         <input type="text" id="docker_compose_file" name="docker_compose_file" value="docker-compose.yml" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
-        <label for="env_file" style="display: block; margin-top: 1rem; margin-bottom: 0.5rem; font-weight: bold;">Env File Path (Optional)</label>
-        <input type="text" id="env_file" name="env_file" placeholder="e.g., .env.prod" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
     </div>
 
-    <div id="custom_options" style="margin-top: 1rem; display: none;">
-        <label for="deploy_command" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Custom Deployment Command</label>
-        <input type="text" id="deploy_command" name="deploy_command" placeholder="e.g., ./scripts/deploy.sh" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
+    <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem; padding: 1rem; background: #f9f9f9; border-radius: 4px;">
+        <h4 style="margin: 0 0 0.5rem 0;">Features (Ansible-based)</h4>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <input type="checkbox" id="enable_backup" name="enable_backup" checked>
+            <label for="enable_backup" style="cursor: pointer;">✅ Pre-deployment Backup</label>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <input type="checkbox" id="enable_dry_run" name="enable_dry_run" checked>
+            <label for="enable_dry_run" style="cursor: pointer;">🔍 Dry-Run Preview</label>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <input type="checkbox" id="enable_health_check" name="enable_health_check" checked>
+            <label for="enable_health_check" style="cursor: pointer;">🏥 Health Checks</label>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <input type="checkbox" id="enable_rollback" name="enable_rollback" checked>
+            <label for="enable_rollback" style="cursor: pointer;">🔄 Auto-Rollback on Failure</label>
+        </div>
     </div>
 
     <button type="button" onclick="generatePipeline()" style="margin-top: 1.5rem; padding: 0.75rem; background-color: #009485; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%;">Generate Workflow</button>
