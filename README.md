@@ -2,7 +2,7 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/vm-tool.svg)](https://pypi.org/project/vm-tool/) [![Python versions](https://img.shields.io/pypi/pyversions/vm-tool.svg)](https://pypi.org/project/vm-tool/)
 
-[**PyPI**](https://pypi.org/project/vm-tool/) • [**GitHub**](https://github.com/thesunnysinha/vm_tool) • [**Contributing**](CONTRIBUTING) • [**License**](LICENSE)
+[**Documentation**](https://vm-tool.sunnysinha.online/) • [**PyPI**](https://pypi.org/project/vm-tool/) • [**GitHub**](https://github.com/thesunnysinha/vm_tool) • [**Contributing**](CONTRIBUTING) • [**License**](LICENSE)
 
 A modern, user-friendly solution for automating and managing virtual machine (VM) setup and configuration using Ansible.
 
@@ -159,7 +159,7 @@ vm_tool --version
 
 ## 📚 Learn More
 
-See the [PyPI page](https://pypi.org/project/vm-tool/) for more details, or visit the [GitHub repository](https://github.com/thesunnysinha/vm_tool) for full documentation, issues, and contributions.
+See the [Official Documentation](https://vm-tool.sunnysinha.online/) for complete guides. Visit the [PyPI page](https://pypi.org/project/vm-tool/) for generic details, or the [GitHub repository](https://github.com/thesunnysinha/vm_tool) for code and issues.
 
 ---
 
