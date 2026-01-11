@@ -180,14 +180,19 @@ class SetupRunner:
         except Exception:
             pass
         return None
-        self.github_branch = config.github_branch
-        self.docker_compose_file_path = config.docker_compose_file_path
-        self.dockerhub_username = config.dockerhub_username
-        self.dockerhub_password = config.dockerhub_password
-        self.env_path = config.env_path
-        self.env_data = config.env_data
 
-    def _run_ansible_playbook(self, extravars, inventory_file):
+    def _setup_attributes(self):
+        """Setup runner attributes from config."""
+        self.github_branch = self.config.github_branch
+        self.docker_compose_file_path = self.config.docker_compose_file_path
+        self.dockerhub_username = self.config.dockerhub_username
+        self.dockerhub_password = self.config.dockerhub_password
+        self.env_path = self.config.env_path
+        self.env_data = self.config.env_data
+
+    def _run_ansible_playbook(
+        self, extravars: dict, inventory_file: str = "inventory.yml"
+    ):
         """Executes an Ansible playbook with the given variables and inventory."""
         current_dir = os.path.dirname(os.path.abspath(__file__))
         venv_dir = os.path.join(sys.prefix, "ansible_runner_data")
