@@ -48,7 +48,7 @@ setup(
         "Topic :: Software Development :: Build Tools",
         "Topic :: System :: Systems Administration",
     ],
-    python_requires=">=3.6",
+    python_requires=">=3.9",
     keywords="virtual machine setup ansible automation",
     license="MIT",
     include_package_data=True,
