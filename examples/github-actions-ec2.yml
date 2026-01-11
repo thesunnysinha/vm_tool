@@ -32,6 +32,27 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
+      - name: Validate SSH Connection
+        run: |
+          if [ ! -s ~/.ssh/deploy_key ]; then
+            echo "❌ ERROR: EC2_SSH_KEY is empty!"
+            echo ""
+            echo "📝 To get your SSH key, run on your local machine:"
+            echo "   cat ~/.ssh/id_rsa"
+            echo ""
+            echo "Then add it to GitHub Secrets as EC2_SSH_KEY"
+            echo "See: docs/ssh-key-setup.md for detailed instructions"
+            exit 1
+          fi
+          
+          echo "✅ Testing SSH connection..."
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "echo 'Connection successful'" || {
+            echo "❌ SSH connection failed!"
+            echo "Check: docs/ssh-key-setup.md for troubleshooting"
+            exit 1
+          }
+
       - name: Copy project files to EC2
         run: |
           # Create app directory if it doesn't exist
