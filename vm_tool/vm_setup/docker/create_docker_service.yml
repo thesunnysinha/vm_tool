@@ -49,7 +49,7 @@
           [Service]
           Type=simple
           WorkingDirectory={{ project_dest_dir }}
-          ExecStart=docker compose -f {{ DOCKER_COMPOSE_FILE_PATH | default('docker-compose.yml') }} {% if ENV_FILE_PATH is defined %}--env-file {{ ENV_FILE_PATH }}{% endif %} up -d
+          ExecStart={{ DEPLOY_COMMAND if DEPLOY_COMMAND is defined else ('docker compose -f ' + (DOCKER_COMPOSE_FILE_PATH | default('docker-compose.yml')) + (' --env-file ' + ENV_FILE_PATH if ENV_FILE_PATH is defined else '') + ' up -d') }}
           Restart=always
           RestartSec=10s
 

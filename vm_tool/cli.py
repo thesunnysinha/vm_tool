@@ -69,6 +69,11 @@ def main():
     docker_parser.add_argument(
         "--env-file", type=str, help="Path to env file (optional)"
     )
+    docker_parser.add_argument(
+        "--deploy-command",
+        type=str,
+        help="Custom deployment command (overrides default docker compose up)",
+    )
 
     # Pipeline Generator command
     pipe_parser = subparsers.add_parser(
@@ -142,6 +147,7 @@ def main():
                 host=args.host,
                 user=args.user,
                 env_file=args.env_file,
+                deploy_command=args.deploy_command,
             )
         except Exception as e:
             print(f"Error: {e}")
@@ -201,6 +207,11 @@ def main():
                 if env_file_input:
                     env_file = env_file_input
 
+                custom_cmd_input = input(
+                    "Enter custom deployment command (optional, overrides default): "
+                ).strip()
+                deploy_command = custom_cmd_input if custom_cmd_input else None
+
             context = {
                 "branch_name": branch,
                 "python_version": python_version,
@@ -210,6 +221,7 @@ def main():
                 "deployment_type": deployment_type,
                 "docker_compose_file": docker_compose_file,
                 "env_file": env_file,
+                "deploy_command": deploy_command,
             }
 
             generator = PipelineGenerator()

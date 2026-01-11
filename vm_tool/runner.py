@@ -297,6 +297,7 @@ class SetupRunner:
         host: str = None,
         user: str = None,
         env_file: str = None,
+        deploy_command: str = None,
     ):
         """Runs the Docker Compose deployment."""
 
@@ -347,6 +348,9 @@ class SetupRunner:
 
         if env_file:
             extravars["ENV_FILE_PATH"] = env_file
+
+        if deploy_command:
+            extravars["DEPLOY_COMMAND"] = deploy_command
 
         # reusing main.yml or a specific deploy playbook.
         # Assuming main.yml handles docker deploy if DOCKER_COMPOSE_FILE_PATH is set.

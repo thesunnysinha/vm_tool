@@ -48,6 +48,8 @@ Use this tool to generate a GitHub Actions workflow for your project. Fill in th
         <input type="text" id="docker_compose_file" name="docker_compose_file" value="docker-compose.yml" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
         <label for="env_file" style="display: block; margin-top: 1rem; margin-bottom: 0.5rem; font-weight: bold;">Env File Path (Optional)</label>
         <input type="text" id="env_file" name="env_file" placeholder="e.g., .env.prod" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
+        <label for="deploy_command" style="display: block; margin-top: 1rem; margin-bottom: 0.5rem; font-weight: bold;">Custom Deployment Command (Optional)</label>
+        <input type="text" id="deploy_command" name="deploy_command" placeholder="e.g., ./scripts/deploy.sh" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
     </div>
 
     <button type="button" onclick="generatePipeline()" style="margin-top: 1.5rem; padding: 0.75rem; background-color: #009485; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%;">Generate Workflow</button>
@@ -144,7 +146,7 @@ const TEMPLATE_DOCKER = `
     - name: Deploy with Docker Compose
       run: |
         echo "Deploying with Docker Compose..."
-        vm_tool deploy-docker --compose-file (( docker_compose_file )) (( env_file_flag ))--host \${{ secrets.VM_HOST }} --user \${{ secrets.SSH_USER }}
+        vm_tool deploy-docker --compose-file (( docker_compose_file )) (( env_file_flag ))(( deploy_command_flag ))--host \${{ secrets.VM_HOST }} --user \${{ secrets.SSH_USER }}
 `;
 
 function generatePipeline() {
@@ -156,6 +158,7 @@ function generatePipeline() {
     const deployType = document.querySelector('input[name="deployment_type"]:checked').value;
     const composeFile = document.getElementById('docker_compose_file').value;
     const envFile = document.getElementById('env_file').value.trim();
+    const deployCommand = document.getElementById('deploy_command').value.trim();
 
     let output = TEMPLATE_BASE
         .replace(/\(\( branch_name \)\)/g, branch)
@@ -170,11 +173,19 @@ function generatePipeline() {
         output += TEMPLATE_K8S;
     } else {
         let dockerOutput = TEMPLATE_DOCKER.replace(/\(\( docker_compose_file \)\)/g, composeFile);
+        
         if (envFile) {
             dockerOutput = dockerOutput.replace(/\(\( env_file_flag \)\)/g, `--env-file ${envFile} `);
         } else {
              dockerOutput = dockerOutput.replace(/\(\( env_file_flag \)\)/g, "");
         }
+        
+        if (deployCommand) {
+             dockerOutput = dockerOutput.replace(/\(\( deploy_command_flag \)\)/g, `--deploy-command "${deployCommand}" `);
+        } else {
+             dockerOutput = dockerOutput.replace(/\(\( deploy_command_flag \)\)/g, "");
+        }
+        
         output += dockerOutput;
     }
 
