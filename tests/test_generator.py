@@ -20,6 +20,11 @@ def test_generate_github_pipeline(mock_fs):
     handle.write.assert_called_once()
     assert "vm_tool setup-k8s" in handle.write.call_args[0][0]
     assert "vm_tool setup-monitoring" in handle.write.call_args[0][0]  # Default is True
+    # Check new defaults
+    content = handle.write.call_args[0][0]
+    assert "python-version: '3.12'" in content
+    assert "flake8" not in content
+    assert "pytest" not in content
 
 
 def test_generate_github_pipeline_no_monitoring(mock_fs):
@@ -33,7 +38,31 @@ def test_generate_github_pipeline_no_monitoring(mock_fs):
     handle = mock_open_func.return_value.__enter__.return_value
     handle.write.assert_called_once()
     content = handle.write.call_args[0][0]
-    assert "vm_tool setup-k8s" in content
+    assert "vm_tool setup-monitoring" not in content
+
+
+def test_generate_github_pipeline_custom_context(mock_fs):
+    mock_open_func, mock_exists, mock_makedirs = mock_fs
+
+    context = {
+        "branch_name": "dev",
+        "python_version": "3.10",
+        "run_linting": True,
+        "run_tests": True,
+        "setup_monitoring": False,
+    }
+
+    generator = PipelineGenerator()
+    generator.generate(platform="github", context=context)
+
+    handle = mock_open_func.return_value.__enter__.return_value
+    handle.write.assert_called_once()
+    content = handle.write.call_args[0][0]
+
+    assert "branches: [ dev ]" in content
+    assert "python-version: '3.10'" in content
+    assert "flake8" in content
+    assert "pytest" in content
     assert "vm_tool setup-monitoring" not in content
 
 

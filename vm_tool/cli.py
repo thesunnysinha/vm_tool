@@ -118,31 +118,36 @@ def main():
                 input("Enter the branch to trigger deployment [main]: ").strip()
                 or "main"
             )
-            provider = (
-                input("Enter cloud provider (aws/other) [aws]: ").strip() or "aws"
+            python_version = input("Enter Python version [3.12]: ").strip() or "3.12"
+
+            enable_linting = (
+                input("Include Linting step (flake8)? [y/N]: ").strip().lower()
             )
+            run_linting = enable_linting in ("y", "yes")
 
-            region = "us-east-1"
-            instance_type = "t2.small"
+            enable_tests = (
+                input("Include Testing step (pytest)? [y/N]: ").strip().lower()
+            )
+            run_tests = enable_tests in ("y", "yes")
 
-            if provider == "aws":
-                region = input("Enter AWS Region [us-east-1]: ").strip() or "us-east-1"
-                instance_type = (
-                    input("Enter Instance Type [t2.small]: ").strip() or "t2.small"
-                )
+            enable_monitoring = (
+                input("Include Monitoring (Prometheus/Grafana)? [Y/n]: ")
+                .strip()
+                .lower()
+            )
+            setup_monitoring = enable_monitoring not in ("n", "no")
 
             context = {
                 "branch_name": branch,
-                "provider": provider,
-                "aws_region": region,
-                "instance_type": instance_type,
+                "python_version": python_version,
+                "run_linting": run_linting,
+                "run_tests": run_tests,
+                "setup_monitoring": setup_monitoring,
             }
 
             generator = PipelineGenerator()
             generator.generate(platform=args.platform, context=context)
-            print(
-                f"✅ Pipeline generated for branch '{branch}' using provider '{provider}'."
-            )
+            print(f"✅ Deployment pipeline generated for branch '{branch}'.")
         except Exception as e:
             print(f"Error: {e}")
             sys.exit(1)

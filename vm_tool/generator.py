@@ -26,10 +26,24 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.12'
+        python-version: '(( python_version ))'
 
     - name: Install vm_tool
       run: pip install vm-tool
+
+    {% if run_linting %}
+    - name: Run Linting
+      run: |
+        pip install flake8
+        flake8 .
+    {% endif %}
+
+    {% if run_tests %}
+    - name: Run Tests
+      run: |
+        pip install pytest
+        pytest
+    {% endif %}
 
     # Setup SSH Key for Ansible/SSH connections
     # - name: Setup SSH Key
@@ -61,6 +75,9 @@ jobs:
         if context is None:
             context = {
                 "branch_name": "main",
+                "python_version": "3.12",
+                "run_linting": False,
+                "run_tests": False,
                 "setup_monitoring": True,
             }
 
