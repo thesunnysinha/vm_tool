@@ -299,8 +299,30 @@ class SetupRunner:
         user: str = None,
         env_file: str = None,
         deploy_command: str = None,
+        force: bool = False,
     ):
-        """Runs the Docker Compose deployment."""
+        """Runs the Docker Compose deployment with idempotency."""
+        from vm_tool.state import DeploymentState
+
+        # Initialize state tracker
+        state = DeploymentState()
+
+        # Compute hash of compose file for change detection
+        compose_hash = state.compute_hash(compose_file)
+
+        # Check if deployment is needed (unless force is True)
+        service_name = "docker-compose"
+        if host and not force:
+            if not state.needs_update(host, compose_hash, service_name):
+                logger.info(
+                    f"✅ Deployment is up-to-date for {host}. "
+                    f"Use --force to redeploy anyway."
+                )
+                print(
+                    f"✅ No changes detected. Deployment is up-to-date.\n"
+                    f"   Use --force flag to redeploy anyway."
+                )
+                return
 
         target_inventory = inventory_file
 
@@ -353,7 +375,34 @@ class SetupRunner:
         if deploy_command:
             extravars["DEPLOY_COMMAND"] = deploy_command
 
-        # reusing main.yml or a specific deploy playbook.
-        # Assuming main.yml handles docker deploy if DOCKER_COMPOSE_FILE_PATH is set.
-        self._run_ansible_playbook(extravars, target_inventory)
-        logger.info("Docker deployment completed.")
+        playbook_path = os.path.join(
+            os.path.dirname(__file__), "vm_setup", "push_code.yml"
+        )
+
+        try:
+            r = ansible_runner.run(
+                private_data_dir=os.path.dirname(__file__),
+                playbook=playbook_path,
+                inventory=target_inventory,
+                extravars=extravars,
+            )
+
+            if r.status == "successful":
+                logger.info("Docker deployment completed successfully.")
+                # Record successful deployment
+                if host:
+                    state.record_deployment(
+                        host, compose_file, compose_hash, service_name
+                    )
+                    logger.info(f"✅ Deployment state recorded for {host}")
+            else:
+                error_msg = f"Deployment failed with status: {r.status}"
+                logger.error(error_msg)
+                if host:
+                    state.mark_failed(host, service_name, error_msg)
+                raise RuntimeError(error_msg)
+
+        except Exception as e:
+            if host:
+                state.mark_failed(host, service_name, str(e))
+            raise

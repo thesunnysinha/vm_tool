@@ -102,6 +102,11 @@ def main():
     docker_parser.add_argument(
         "--profile", type=str, help="Use a saved deployment profile"
     )
+    docker_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Force redeployment even if no changes detected",
+    )
 
     # Pipeline Generator command
     pipe_parser = subparsers.add_parser(
@@ -234,6 +239,7 @@ def main():
                 user=user,
                 env_file=args.env_file,
                 deploy_command=args.deploy_command,
+                force=args.force,
             )
         except Exception as e:
             print(f"Error: {e}")
