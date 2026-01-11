@@ -2,11 +2,65 @@
 requires = ["setuptools>=45", "wheel", "setuptools_scm>=6.2"]
 build-backend = "setuptools.build_meta"
 
+[project]
+name = "vm_tool"
+version = "1.0.30"
+description = "A Comprehensive Tool for Setting Up Virtual Machines."
+readme = "README.md"
+authors = [
+    {name = "Sunny Sinha", email = "thesunnysinha@gmail.com"},
+]
+license = {text = "MIT"}
+requires-python = ">=3.6"
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Build Tools",
+    "Topic :: System :: Systems Administration",
+]
+dependencies = [
+    "ansible",
+    "ansible-runner",
+    "paramiko",
+    "pydantic",
+    "pyyaml",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=6.0.0",
+    "check-manifest",
+    "twine",
+    "wheel",
+    "bump2version",
+    "bandit",
+    "pre-commit",
+    "mkdocs-material",
+    "mkdocstrings[python]",
+]
+
+[project.scripts]
+vm_tool = "vm_tool.cli:main"
+
+[project.urls]
+Documentation = "https://github.com/thesunnysinha/vm_tool/README.md"
+Source = "https://github.com/thesunnysinha/vm_tool"
+Tracker = "https://github.com/thesunnysinha/vm_tool/issues"
+
 [tool.semantic_release]
 version_variable = [
-    "setup.py:version"
+    "setup.py:version",
+    "pyproject.toml:version"
 ]
 branch = "main"
 upload_to_pypi = true
 upload_to_release = true
 build_command = "python setup.py sdist bdist_wheel"
+
