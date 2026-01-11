@@ -64,6 +64,16 @@ Deploy Prometheus and Grafana for monitoring.
 vm_tool setup-monitoring --inventory <INVENTORY_FILE>
 ```
 
+## 🐳 Docker Deployment
+
+Deploy your application using Docker Compose.
+
+### Command
+
+```bash
+vm_tool deploy-docker --inventory <INVENTORY_FILE> --compose-file <COMPOSE_FILE>
+```
+
 ## ⚡ CI/CD Pipeline Generator
 
 Generate a GitHub Actions workflow to automate everything.

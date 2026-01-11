@@ -133,9 +133,7 @@ const TEMPLATE_DOCKER = `
     - name: Deploy with Docker Compose
       run: |
         echo "Deploying with Docker Compose..."
-        # vm_tool deploy-docker --compose-file docker-compose.yml
-        # or direct ssh command:
-        # ssh user@host "cd /app && docker compose up -d"
+        vm_tool deploy-docker --compose-file docker-compose.yml --inventory inventory.yml
 `;
 
 function generatePipeline() {

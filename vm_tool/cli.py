@@ -49,6 +49,20 @@ def main():
         "--inventory", type=str, default="inventory.yml", help="Inventory file to use"
     )
 
+    # Docker Deploy command
+    docker_parser = subparsers.add_parser(
+        "deploy-docker", help="Deploy using Docker Compose"
+    )
+    docker_parser.add_argument(
+        "--inventory", type=str, default="inventory.yml", help="Inventory file to use"
+    )
+    docker_parser.add_argument(
+        "--compose-file",
+        type=str,
+        default="docker-compose.yml",
+        help="Path to docker-compose.yml",
+    )
+
     # Pipeline Generator command
     pipe_parser = subparsers.add_parser(
         "generate-pipeline", help="Generate CI/CD pipeline configuration"
@@ -103,6 +117,21 @@ def main():
             config = SetupRunnerConfig(github_project_url="dummy")
             runner = SetupRunner(config)
             runner.run_monitoring_setup(inventory_file=args.inventory)
+        except Exception as e:
+            print(f"Error: {e}")
+            sys.exit(1)
+
+    elif args.command == "deploy-docker":
+        try:
+            from vm_tool.runner import SetupRunner, SetupRunnerConfig
+
+            # For deployment, we might need github creds if the playbook pulls code
+            # But for now we use dummy or env vars
+            config = SetupRunnerConfig(github_project_url="dummy")
+            runner = SetupRunner(config)
+            runner.run_docker_deploy(
+                compose_file=args.compose_file, inventory_file=args.inventory
+            )
         except Exception as e:
             print(f"Error: {e}")
             sys.exit(1)

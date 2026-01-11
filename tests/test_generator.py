@@ -91,7 +91,7 @@ def test_generate_github_pipeline_docker(mock_fs):
     handle.write.assert_called_once()
     content = handle.write.call_args[0][0]
 
-    assert "Deploy with Docker Compose" in content
+    assert "vm_tool deploy-docker" in content
     assert "vm_tool setup-k8s" not in content
 
 

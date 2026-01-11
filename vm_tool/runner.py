@@ -289,3 +289,20 @@ class SetupRunner:
         extravars = {"ansible_python_interpreter": "/usr/bin/python3"}
         self._run_ansible_playbook(extravars, "monitoring.yml")
         logger.info("Monitoring setup completed.")
+
+    def run_docker_deploy(
+        self, compose_file="docker-compose.yml", inventory_file="inventory.yml"
+    ):
+        """Runs the Docker Compose deployment."""
+        logger.info(f"Starting Docker deployment using {compose_file}...")
+        extravars = {
+            "ansible_python_interpreter": "/usr/bin/python3",
+            "DOCKER_COMPOSE_FILE_PATH": compose_file,
+            "GITHUB_USERNAME": self.github_username,
+            "GITHUB_TOKEN": self.github_token,
+            "GITHUB_PROJECT_URL": self.github_project_url,
+        }
+        # reusing main.yml or a specific deploy playbook.
+        # Assuming main.yml handles docker deploy if DOCKER_COMPOSE_FILE_PATH is set.
+        self._run_ansible_playbook(extravars, "vm_setup/main.yml")
+        logger.info("Docker deployment completed.")
