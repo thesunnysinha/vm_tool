@@ -387,6 +387,8 @@ class SetupRunner:
             "GITHUB_PROJECT_URL": self.github_project_url,
             "DEPLOY_MODE": "push",
             "SOURCE_PATH": os.getcwd(),  # Current working directory where vm_tool is run
+            "project_dest_dir": "~/app",
+            "GITHUB_REPOSITORY_OWNER": os.environ.get("GITHUB_REPOSITORY_OWNER", ""),
         }
 
         if env_file:

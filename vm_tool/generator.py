@@ -11,7 +11,7 @@ class PipelineGenerator:
     def __init__(
         self,
         platform: str = "github",
-        strategy: str = "docker",
+        strategy: str = "docker",  # docker, registry
         enable_monitoring: bool = False,
         enable_health_checks: bool = True,
         enable_backup: bool = True,
@@ -38,6 +38,25 @@ class PipelineGenerator:
         self.backup_paths = backup_paths or ["/app", "/etc/nginx"]
         self.app_port = app_port
 
+        # New options
+        self.run_linting = False
+        self.run_tests = False
+        self.python_version = "3.11"
+        self.branch = "main"
+
+    def set_options(
+        self,
+        run_linting: bool = False,
+        run_tests: bool = False,
+        python_version: str = "3.11",
+        branch: str = "main",
+    ):
+        """Set additional options for the pipeline."""
+        self.run_linting = run_linting
+        self.run_tests = run_tests
+        self.python_version = python_version
+        self.branch = branch
+
     def generate(self) -> str:
         """Generate pipeline based on platform."""
         if self.platform == "github":
@@ -51,6 +70,7 @@ class PipelineGenerator:
         """Generate GitHub Actions workflow with all features."""
 
         # Build steps dynamically
+        # Build steps dynamically
         steps = []
 
         # Basic setup steps
@@ -60,13 +80,33 @@ class PipelineGenerator:
                 self._step_validate_secrets(),
                 self._step_setup_python(),
                 self._step_install_vm_tool(),
+            ]
+        )
+
+        if self.run_linting:
+            steps.append(self._step_run_linting())
+
+        if self.run_tests:
+            steps.append(self._step_run_tests())
+
+        # Build and Push (Registry Strategy)
+        if self.strategy == "registry":
+            steps.append(self._step_login_ghcr())
+            steps.append(self._step_build_push())
+
+        steps.extend(
+            [
                 self._step_setup_ssh(),
                 self._step_validate_ssh(),
             ]
         )
 
-        # Copy files
-        steps.append(self._step_copy_files())
+        # Copy files (only if NOT registry strategy, or just config for registry)
+        if self.strategy == "registry":
+            # For registry, we only need docker-compose and .env, not the full source
+            steps.append(self._step_copy_compose_only())
+        else:
+            steps.append(self._step_copy_files())
 
         # Backup step
         if self.enable_backup:
@@ -107,9 +147,9 @@ class PipelineGenerator:
 
 on:
   push:
-    branches: [ main ]
+    branches: [ {self.branch} ]
   pull_request:
-    branches: [ main ]
+    branches: [ {self.branch} ]
   workflow_dispatch:
 
 env:
@@ -184,12 +224,69 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'"""
+          python-version: '{self.python_version}'"""
 
     def _step_install_vm_tool(self) -> str:
         return """
       - name: Install vm_tool
         run: pip install vm-tool"""
+
+    def _step_run_linting(self) -> str:
+        return """
+      - name: Lint with flake8
+        run: |
+          pip install flake8
+          # stop the build if there are Python syntax errors or undefined names
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          # exit-zero treats all errors as warnings.
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics"""
+
+    def _step_run_tests(self) -> str:
+        return """
+      - name: Test with pytest
+        run: |
+          pip install pytest
+          pytest"""
+
+    def _step_login_ghcr(self) -> str:
+        return """
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}"""
+
+    def _step_build_push(self) -> str:
+        return """
+      - name: Build and push Docker images
+        env:
+          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+        run: |
+          # Create .env file for build context if needed
+          if [ -f .env.production ]; then
+            cp .env.production .env
+          fi
+          
+          # Build and push using docker-compose
+          docker-compose build
+          docker-compose push"""
+
+    def _step_copy_compose_only(self) -> str:
+        return """
+      - name: Copy docker-compose to EC2
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \\
+            'mkdir -p ~/app'
+          
+          scp -i ~/.ssh/deploy_key docker-compose.yml \\
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/app/
+          
+          # Copy .env file
+          if [ -f .env.production ]; then
+            scp -i ~/.ssh/deploy_key .env.production \\
+              ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/app/.env
+          fi"""
 
     def _step_setup_ssh(self) -> str:
         return """
@@ -271,6 +368,7 @@ jobs:
           EOF
           
           # Deploy using vm_tool (uses Ansible under the hood)
+          export GITHUB_REPOSITORY_OWNER=${{ github.repository_owner }}
           vm_tool deploy-docker \\
             --host ${{ secrets.EC2_HOST }} \\
             --user ${{ secrets.EC2_USER }} \\

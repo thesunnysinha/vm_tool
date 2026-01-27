@@ -6,7 +6,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="VM Tool: Setup, Provision, and Manage VMs"
     )
-    parser.add_argument("--version", action="version", version="1.0.30")
+    parser.add_argument("--version", action="version", version="1.0.31")
     parser.add_argument(
         "--verbose", "-v", action="store_true", help="Enable verbose output"
     )
@@ -684,17 +684,22 @@ def main():
             setup_monitoring = enable_monitoring in ("y", "yes")
 
             dep_type_input = (
-                input(
-                    "Deployment Type (docker/custom) [docker] (kubernetes coming soon): "
-                )
+                input("Deployment Type (docker/registry/custom) [docker]: ")
                 .strip()
                 .lower()
             )
             deployment_type = "docker"
+            strategy = "docker"
+
             if dep_type_input in ("custom", "c"):
                 deployment_type = "custom"
+                strategy = "custom"
+            elif dep_type_input in ("registry", "ghcr", "r"):
+                deployment_type = "docker"
+                strategy = "registry"
             elif dep_type_input in ("kubernetes", "k8s", "k"):
                 deployment_type = "kubernetes"
+                strategy = "kubernetes"
 
             docker_compose_file = "docker-compose.yml"
             env_file = None
@@ -729,7 +734,17 @@ def main():
             }
 
             # Use new generator API
-            generator = PipelineGenerator(platform=args.platform)
+            generator = PipelineGenerator(
+                platform=args.platform,
+                strategy=strategy,
+                enable_monitoring=setup_monitoring,
+            )
+            generator.set_options(
+                run_linting=run_linting,
+                run_tests=run_tests,
+                python_version=python_version,
+                branch=branch,
+            )
             output = generator.generate()
 
             # Save to file

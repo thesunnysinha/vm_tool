@@ -1,0 +1,207 @@
+name: Deploy to EC2 with vm_tool
+
+on:
+  push:
+    branches: [ develop ]
+  pull_request:
+    branches: [ develop ]
+  workflow_dispatch:
+
+env:
+  EC2_HOST: ${{ secrets.EC2_HOST }}
+  EC2_USER: ${{ secrets.EC2_USER }}
+  APP_PORT: 8000
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate Required Secrets
+        run: |
+          echo "🔐 Validating GitHub Secrets..."
+          MISSING_SECRETS=()
+          
+          if [ -z "${{ secrets.EC2_HOST }}" ]; then
+            MISSING_SECRETS+=("EC2_HOST")
+          fi
+          
+          if [ -z "${{ secrets.EC2_USER }}" ]; then
+            MISSING_SECRETS+=("EC2_USER")
+          fi
+          
+          if [ -z "${{ secrets.EC2_SSH_KEY }}" ]; then
+            MISSING_SECRETS+=("EC2_SSH_KEY")
+          fi
+          
+          if [ ${#MISSING_SECRETS[@]} -ne 0 ]; then
+            echo ""
+            echo "❌ ERROR: Missing required GitHub Secrets!"
+            echo ""
+            echo "Missing: ${MISSING_SECRETS[*]}"
+            echo ""
+            echo "📝 How to add secrets:"
+            echo "1. Go to: Repository → Settings → Secrets → Actions"
+            echo "2. Add each secret:"
+            echo ""
+            
+            if [[ " ${MISSING_SECRETS[*]} " =~ " EC2_HOST " ]]; then
+              echo "   EC2_HOST: Your EC2 IP (e.g., 54.123.45.67)"
+            fi
+            
+            if [[ " ${MISSING_SECRETS[*]} " =~ " EC2_USER " ]]; then
+              echo "   EC2_USER: SSH username (e.g., ubuntu)"
+            fi
+            
+            if [[ " ${MISSING_SECRETS[*]} " =~ " EC2_SSH_KEY " ]]; then
+              echo "   EC2_SSH_KEY: Run 'cat ~/.ssh/id_rsa' and copy output"
+            fi
+            
+            echo ""
+            echo "📚 See: docs/ssh-key-setup.md"
+            exit 1
+          fi
+          
+          echo "✅ All secrets configured"
+
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '{self.python_version}'
+
+      - name: Install vm_tool
+        run: pip install vm-tool
+
+      - name: Lint with flake8
+        run: |
+          pip install flake8
+          # stop the build if there are Python syntax errors or undefined names
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          # exit-zero treats all errors as warnings.
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+      - name: Test with pytest
+        run: |
+          pip install pytest
+          pytest
+
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Validate SSH Connection
+        run: |
+          echo "✅ Testing SSH connection..."
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "echo 'Connected'" || {
+            echo "❌ SSH failed! Check docs/ssh-key-setup.md"
+            exit 1
+          }
+
+      - name: Copy docker-compose to EC2
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+            'mkdir -p ~/app'
+          
+          scp -i ~/.ssh/deploy_key docker-compose.yml \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/app/
+          
+          # Copy any .env files if they exist
+          if [ -f .env.production ]; then
+            scp -i ~/.ssh/deploy_key .env.production \
+              ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/app/.env
+          fi
+
+      - name: Create backup
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            mkdir -p ~/backups
+            if [ -d ~/app ]; then
+              tar -czf ~/backups/backup-$(date +%Y%m%d-%H%M%S).tar.gz -C ~/app . 2>/dev/null || true
+              echo "✅ Backup created"
+            fi
+          EOF
+
+      - name: Dry-run
+        run: |
+          echo "🔍 DRY-RUN: Previewing deployment"
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            cd ~/app && docker-compose config
+          EOF
+
+      - name: Deploy with vm_tool (Ansible-based)
+        run: |
+          # Create inventory file for Ansible
+          cat > inventory.yml << EOF
+          all:
+            hosts:
+              production:
+                ansible_host: ${{ secrets.EC2_HOST }}
+                ansible_user: ${{ secrets.EC2_USER }}
+                ansible_ssh_private_key_file: ~/.ssh/deploy_key
+          EOF
+          
+          # Deploy using vm_tool (uses Ansible under the hood)
+          vm_tool deploy-docker \
+            --host ${{ secrets.EC2_HOST }} \
+            --user ${{ secrets.EC2_USER }} \
+            --compose-file ~/app/docker-compose.yml \
+            --inventory inventory.yml \
+            --force
+
+      - name: Health check
+        run: |
+          for i in {{1..30}}; do
+            if curl -f http://${{ secrets.EC2_HOST }}:8000/health 2>/dev/null; then
+              echo "✅ Health check passed"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "❌ Health check failed"
+          exit 1
+
+      - name: Verify
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            cd ~/app
+            docker-compose ps
+            docker-compose logs --tail=20
+          EOF
+
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          echo "⚠️  Rolling back..."
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            BACKUP=$(ls -t ~/backups/*.tar.gz 2>/dev/null | head -1)
+            if [ -n "$BACKUP" ]; then
+              cd ~/app && tar -xzf $BACKUP
+              docker-compose up -d
+              echo "✅ Rolled back"
+            fi
+          EOF
+
+      - name: Cleanup
+        if: success()
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            cd ~/backups 2>/dev/null || exit 0
+            ls -t *.tar.gz 2>/dev/null | tail -n +6 | xargs rm -f || true
+          EOF
+
+      - name: Notify
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ Deployed to ${{ secrets.EC2_HOST }}:${{ env.APP_PORT }}"
+          else
+            echo "❌ Deployment failed"
+          fi

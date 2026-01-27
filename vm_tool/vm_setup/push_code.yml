@@ -31,3 +31,10 @@
         src: "{{ SOURCE_PATH }}/{{ ENV_FILE_PATH | default('.env') }}"
         dest: "{{ project_dest_dir }}/{{ ENV_FILE_PATH | default('.env') }}"
       failed_when: false
+
+    - name: Deploy application
+      shell: "{{ DEPLOY_COMMAND | default('docker-compose up -d --remove-orphans') }}"
+      args:
+        chdir: "{{ project_dest_dir }}"
+      environment:
+        GITHUB_REPOSITORY_OWNER: "{{ GITHUB_REPOSITORY_OWNER | default('') }}"

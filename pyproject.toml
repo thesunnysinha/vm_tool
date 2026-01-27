@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vm_tool"
-version = "1.0.30"
+version = "1.0.31"
 description = "A Comprehensive Tool for Setting Up Virtual Machines."
 readme = "README.md"
 authors = [
@@ -39,7 +39,7 @@ dev = [
     "check-manifest",
     "twine",
     "wheel",
-    "bump2version",
+    "bump-my-version",
     "bandit",
     "pre-commit",
     "mkdocs-material",
@@ -74,3 +74,22 @@ include = '\.pyi?$'
 [tool.isort]
 profile = "black"
 multi_line_output = 3
+[tool.bumpversion]
+current_version = "1.0.31"
+commit = true
+tag = true
+
+[[tool.bumpversion.files]]
+filename = "setup.py"
+search = 'version="{current_version}"'
+replace = 'version="{new_version}"'
+
+[[tool.bumpversion.files]]
+filename = "vm_tool/cli.py"
+search = 'version="{current_version}"'
+replace = 'version="{new_version}"'
+
+[[tool.bumpversion.files]]
+filename = "pyproject.toml"
+search = 'version = "{current_version}"'
+replace = 'version = "{new_version}"'
