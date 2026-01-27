@@ -1,7 +1,7 @@
 """Policy as Code framework for deployment policies."""
 
 import logging
-from typing import Dict, Any, Callable, List
+from typing import Dict, Any, Callable, List, Optional
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
