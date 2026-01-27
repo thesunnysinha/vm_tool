@@ -25,14 +25,15 @@ def test_full_deployment_workflow(test_host, test_port):
 
 def test_health_checks(test_host, test_port):
     """Test health check functionality."""
-    from vm_tool.health import check_port, check_http
+    from vm_tool.health import HealthCheck
 
     # Test port check
-    # port_open = check_port(test_host, test_port)
+    # checker = HealthCheck(test_host)
+    # port_open = checker.check_port(test_port)
     # assert port_open or True  # May not have test server running
 
     # Test HTTP check
-    # http_ok = check_http(f"http://{test_host}:{test_port}/health")
+    # http_ok = checker.check_http(f"http://{test_host}:{test_port}/health")
     # assert http_ok or True
 
     assert True  # Placeholder
