@@ -220,7 +220,7 @@ jobs:
 """
 
     def _step_setup_python(self) -> str:
-        return """
+        return f"""
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
