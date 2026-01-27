@@ -1,13 +1,13 @@
 annotated-types==0.7.0
-ansible==11.1.0
-ansible-core==2.18.1
+ansible>=10.0.0
+ansible-core>=2.17.0
 ansible-runner==2.4.0
 babel==2.17.0
 backrefs==6.1
 bandit==1.9.2
 bcrypt==4.2.1
 build==1.4.0
-bump2version==1.0.1
+bump-my-version
 certifi==2024.12.14
 cffi==1.17.1
 cfgv==3.5.0
@@ -83,6 +83,6 @@ typing-inspection==0.4.1
 typing_extensions==4.14.0
 urllib3==2.3.0
 virtualenv==20.36.1
--e git+https://github.com/thesunnysinha/vm_tool.git@b690ac4a773d97078d2582308d99619abe0a58a8#egg=vm_tool
+
 watchdog==6.0.0
 wheel==0.45.1
