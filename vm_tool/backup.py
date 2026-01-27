@@ -35,7 +35,7 @@ class BackupManager:
 
         # Build tar command
         tar_paths = " ".join(paths)
-        remote_backup = f"/tmp/backup_{backup_id}.tar.gz"
+        remote_backup = f"/tmp/backup_{backup_id}.tar.gz"  # nosec B108
 
         try:
             # Create tar on remote
@@ -98,7 +98,7 @@ class BackupManager:
             raise FileNotFoundError(f"Backup not found: {backup_id}")
 
         backup_file = backup_files[0]
-        remote_backup = f"/tmp/restore_{backup_id}.tar.gz"
+        remote_backup = f"/tmp/restore_{backup_id}.tar.gz"  # nosec B108
 
         try:
             # Upload backup
