@@ -171,6 +171,10 @@ def main():
         print("Pushing to main...")
         run_command("git push origin main")
         
+        # Push tags to trigger PyPI publish
+        print("Pushing tags...")
+        run_command("git push origin --tags")
+        
         # Pull latest changes
         print("Pulling latest changes...")
         run_command("git pull origin main")
