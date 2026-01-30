@@ -373,7 +373,11 @@ class SetupRunner:
             with open(generated_inventory_path, "w") as f:
                 yaml.dump(inventory_content, f)
 
-            target_inventory = "generated_inventory.yml"
+            target_inventory = generated_inventory_path
+
+        else:
+            # If not generating dynamic inventory, ensure the provided inventory path is absolute
+            target_inventory = os.path.abspath(inventory_file)
 
         logger.info(
             f"Starting Docker deployment using {compose_file} on {target_inventory}..."
