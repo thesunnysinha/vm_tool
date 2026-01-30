@@ -110,6 +110,9 @@ def run_in_venv(cmd):
     # Replace bump-my-version command with full path
     if cmd.startswith("bump-my-version"):
         cmd = cmd.replace("bump-my-version", f'"{bump_exe}"')
+        # Add verbose flag to show what's happening
+        if "--verbose" not in cmd and "-v" not in cmd:
+            cmd = cmd.replace("bump patch", "bump patch --verbose")
     
     return run_command(cmd)
 
@@ -125,7 +128,9 @@ def main():
     
     if branch_name == "main":
         # Bump version for main branch
-        print("Bumping version...")
+        print("\n" + "="*60)
+        print("🔢 Bumping version (patch)...")
+        print("="*60)
         run_in_venv("bump-my-version bump patch --allow-dirty")
         
         # Add all changes
