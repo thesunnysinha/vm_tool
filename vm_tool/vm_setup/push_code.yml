@@ -1,5 +1,7 @@
 - name: Push Code Playbook
-  block:
+  hosts: all
+  gather_facts: false
+  tasks:
     - name: Ensure project directory exists
       file:
         path: "{{ project_dest_dir }}"
