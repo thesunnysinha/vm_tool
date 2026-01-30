@@ -117,6 +117,20 @@ def run_in_venv(cmd):
     return run_command(cmd)
 
 
+def get_current_version():
+    """Read the current version from pyproject.toml."""
+    try:
+        with open("pyproject.toml", "r") as f:
+            for line in f:
+                if line.strip().startswith("version ="):
+                    # Extract version from line like: version = "1.0.34"
+                    version = line.split("=")[1].strip().strip('"').strip("'")
+                    return version
+    except Exception as e:
+        print(f"Warning: Could not read current version: {e}")
+    return "unknown"
+
+
 def main():
     # Setup virtual environment
     print("🔧 Setting up environment...")
@@ -127,11 +141,20 @@ def main():
     branch_name = input("Enter the branch name: ").strip()
     
     if branch_name == "main":
+        # Get current version before bump
+        current_version = get_current_version()
+        
         # Bump version for main branch
         print("\n" + "="*60)
-        print("🔢 Bumping version (patch)...")
+        print(f"🔢 Bumping version from {current_version}...")
         print("="*60)
         run_in_venv("bump-my-version bump patch --allow-dirty")
+        
+        # Get new version after bump
+        new_version = get_current_version()
+        print("\n" + "="*60)
+        print(f"✅ Version bumped: {current_version} → {new_version}")
+        print("="*60 + "\n")
         
         # Add all changes
         print("Adding changes...")
