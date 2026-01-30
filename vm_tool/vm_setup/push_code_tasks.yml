@@ -1,0 +1,38 @@
+- name: Ensure project directory exists
+  file:
+    path: "{{ project_dest_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Copy project files to target
+  copy:
+    src: "{{ playbook_dir }}/../../" 
+    dest: "{{ project_dest_dir }}/"
+    # Note: In ansible-runner, playbook_dir is inside private_data_dir/project/vm_setup.
+    # We need to be careful about the source path.
+    # However, ansible_runner isolates execution.
+    # Better approach: Pass SOURCE_PATH as extravar.
+  when: false # Placeholder, we will use synchronize or better strategy.
+
+# Re-thinking: simple 'copy' of just the compose file is safer for now if we don't know build context.
+# But usually context is needed. 
+# Let's rely on 'synchronize' (rsync) if available, or just copy the compose file if user only provided that.
+
+# For MVP of 'deploy-docker', let's copy the DOCKER_COMPOSE_FILE_PATH and .env if exists.
+- name: Copy Docker Compose file
+  copy:
+    src: "{{ SOURCE_PATH }}/{{ DOCKER_COMPOSE_FILE_PATH }}"
+    dest: "{{ project_dest_dir }}/{{ DOCKER_COMPOSE_FILE_PATH }}"
+
+- name: Copy Env file
+  copy:
+    src: "{{ SOURCE_PATH }}/{{ ENV_FILE_PATH | default('.env') }}"
+    dest: "{{ project_dest_dir }}/{{ ENV_FILE_PATH | default('.env') }}"
+  failed_when: false
+
+- name: Deploy application
+  shell: "{{ DEPLOY_COMMAND | default('docker-compose up -d --remove-orphans') }}"
+  args:
+    chdir: "{{ project_dest_dir }}"
+  environment:
+    GITHUB_REPOSITORY_OWNER: "{{ GITHUB_REPOSITORY_OWNER | default('') }}"

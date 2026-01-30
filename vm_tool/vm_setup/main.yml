@@ -11,7 +11,7 @@
       when: DEPLOY_MODE | default('pull') != 'push'
 
     - name: Push Code (Zero Touch)
-      include_tasks: push_code.yml
+      include_tasks: push_code_tasks.yml
       when: DEPLOY_MODE | default('pull') == 'push'
 
     - name: Setup Project Environment File
