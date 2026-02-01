@@ -246,6 +246,76 @@ class EncryptedFileBackend(SecretsBackend):
             return False
 
 
+class GitHubSecretsBackend(SecretsBackend):
+    """GitHub Actions Secrets backend using 'gh' CLI."""
+
+    def __init__(self, repo: Optional[str] = None):
+        import shutil
+
+        self.gh_cli = shutil.which("gh")
+        if not self.gh_cli:
+            raise RuntimeError("GitHub CLI ('gh') is not installed.")
+        self.repo = repo
+
+    def get_secret(self, key: str) -> Optional[str]:
+        """
+        Get secret from GitHub.
+        Note: GitHub Secrets are write-only. We can't retrieve the value.
+        """
+        logger.warning("Cannot retrieve secret value from GitHub (write-only).")
+        return None
+
+    def set_secret(self, key: str, value: str) -> bool:
+        """Set secret in GitHub Actions."""
+        import subprocess
+
+        cmd = ["gh", "secret", "set", key]
+        if self.repo:
+            cmd.extend(["--repo", self.repo])
+
+        try:
+            # Pass value via stdin
+            subprocess.run(cmd, input=value, check=True, text=True, capture_output=True)
+            logger.info(f"Secret '{key}' stored in GitHub Secrets")
+            return True
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Failed to set secret in GitHub: {e.stderr.strip()}")
+            return False
+
+    def delete_secret(self, key: str) -> bool:
+        """Delete secret from GitHub Actions."""
+        import subprocess
+
+        cmd = ["gh", "secret", "delete", key]
+        if self.repo:
+            cmd.extend(["--repo", self.repo])
+
+        try:
+            subprocess.run(cmd, check=True, text=True, capture_output=True)
+            logger.info(f"Secret '{key}' deleted from GitHub Secrets")
+            return True
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Failed to delete secret from GitHub: {e.stderr.strip()}")
+            return False
+
+    def list_secrets(self) -> list:
+        """List all secret keys in GitHub Actions."""
+        import subprocess
+        import json
+
+        cmd = ["gh", "secret", "list", "--json", "name"]
+        if self.repo:
+            cmd.extend(["--repo", self.repo])
+
+        try:
+            result = subprocess.run(cmd, check=True, text=True, capture_output=True)
+            secrets = json.loads(result.stdout)
+            return [s["name"] for s in secrets]
+        except Exception as e:
+            logger.error(f"Failed to list secrets from GitHub: {e}")
+            return []
+
+
 class SecretsManager:
     """Unified secrets manager supporting multiple backends."""
 
@@ -283,3 +353,8 @@ class SecretsManager:
     def from_file(cls, secrets_file: str = ".secrets.enc", **kwargs):
         """Create secrets manager with encrypted file backend."""
         return cls(EncryptedFileBackend(secrets_file, **kwargs))
+
+    @classmethod
+    def from_github(cls, repo: Optional[str] = None):
+        """Create secrets manager with GitHub backend."""
+        return cls(GitHubSecretsBackend(repo))

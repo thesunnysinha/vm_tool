@@ -294,6 +294,23 @@ def main():
         help="CI/CD Platform",
     )
 
+    # Secrets command
+    secrets_parser = subparsers.add_parser("secrets", help="Manage secrets")
+    secrets_subparsers = secrets_parser.add_subparsers(
+        dest="secrets_command", help="Secrets operations"
+    )
+
+    # secrets sync
+    sync_parser = secrets_subparsers.add_parser(
+        "sync", help="Sync local .env to GitHub Secrets"
+    )
+    sync_parser.add_argument(
+        "--env-file", type=str, default=".env", help="Path to .env file"
+    )
+    sync_parser.add_argument(
+        "--repo", type=str, help="Target GitHub repository (owner/repo)"
+    )
+
     args = parser.parse_args()
 
     # Configure logging based on flags
@@ -802,6 +819,63 @@ def main():
         except Exception as e:
             print(f"Error: {e}")
             sys.exit(1)
+    elif args.command == "secrets":
+        if args.secrets_command == "sync":
+            from vm_tool.secrets import SecretsManager
+            import os
+
+            if not os.path.exists(args.env_file):
+                print(f"❌ Env file not found: {args.env_file}")
+                sys.exit(1)
+
+            try:
+                manager = SecretsManager.from_github(repo=args.repo)
+
+                print(f"📖 Reading secrets from {args.env_file}...")
+                secrets_to_sync = {}
+                with open(args.env_file, "r") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line or line.startswith("#"):
+                            continue
+                        # Basic env parsing
+                        if "=" in line:
+                            key, value = line.split("=", 1)
+                            key = key.strip()
+                            value = value.strip().strip("'").strip('"')
+                            secrets_to_sync[key] = value
+
+                if not secrets_to_sync:
+                    print("⚠️  No secrets found to sync.")
+                    sys.exit(0)
+
+                print(f"🚀 Syncing {len(secrets_to_sync)} secrets to GitHub...")
+                # Confirm with user
+                confirm = (
+                    input(
+                        f"Proceed to upload {len(secrets_to_sync)} secrets? (yes/no): "
+                    )
+                    .strip()
+                    .lower()
+                )
+                if confirm != "yes":
+                    print("❌ Operation cancelled.")
+                    sys.exit(0)
+
+                success_count = 0
+                for key, value in secrets_to_sync.items():
+                    print(f"   Uploading {key}...")
+                    if manager.set(key, value):
+                        success_count += 1
+
+                print(
+                    f"\n✨ Successfully synced {success_count}/{len(secrets_to_sync)} secrets!"
+                )
+
+            except Exception as e:
+                print(f"❌ Error syncing secrets: {e}")
+                sys.exit(1)
+
     else:
         parser.print_help()
 
