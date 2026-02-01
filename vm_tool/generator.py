@@ -427,18 +427,34 @@ jobs:
           # Deploy using vm_tool (uses Ansible under the hood)
           export GITHUB_REPOSITORY_OWNER=${{ github.repository_owner }}
           
-          # Use absolute path for project dir to avoid CI runner home expansion
-          PROJECT_DIR="/home/${{ secrets.SSH_USERNAME }}/apps/${{ github.event.repository.name }}"
+          # Determine Project Directory based on user (handle root case)
+          if [ "${{ secrets.SSH_USERNAME }}" = "root" ]; then
+            HOME_DIR="/root"
+          else
+            HOME_DIR="/home/${{ secrets.SSH_USERNAME }}"
+          fi
+          PROJECT_DIR="${HOME_DIR}/apps/${{ github.event.repository.name }}"
           
-          vm_tool deploy-docker \\
-            --host ${{ secrets.SSH_HOSTNAME }} \\
-            --user ${{ secrets.SSH_USERNAME }} \\
-            --compose-file docker-compose.released.yml \\
-            --inventory inventory.yml \\
-            --project-dir "$PROJECT_DIR" \\
-            --deploy-command "${{ env.DEPLOY_COMMAND }}" \\
-            --force \\
-            --health-url "http://${{ secrets.SSH_HOSTNAME }}:${{ env.APP_PORT }}/health"
+          # Prepare arguments
+          ARGS=(
+            "--inventory" "inventory.yml"
+            "--compose-file" "docker-compose.released.yml"
+            "--project-dir" "$PROJECT_DIR"
+            "--deploy-command" "${{ env.DEPLOY_COMMAND }}"
+            "--force"
+            "--health-url" "http://${{ secrets.SSH_HOSTNAME }}:${{ env.APP_PORT }}/health"
+            "--host" "${{ secrets.SSH_HOSTNAME }}"
+            "--user" "${{ secrets.SSH_USERNAME }}"
+          )
+
+          # Move .env if it exists and add to args
+          if [ -f .env ]; then
+            mkdir -p env
+            mv .env env/.env
+            ARGS+=("--env-file" "env/.env")
+          fi
+          
+          vm_tool deploy-docker "${ARGS[@]}"
 """
 
     def _step_health_check(self) -> str:
