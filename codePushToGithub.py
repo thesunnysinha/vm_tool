@@ -143,7 +143,11 @@ def main():
 
         commit_message = input("Enter the commit message for your changes: ").strip()
         print("Committing changes...")
-        run_command(f'git commit -m "{commit_message}"')
+        result = run_command(f'git commit -m "{commit_message}"', check=False)
+        if result.returncode != 0:
+            print(
+                "⚠️  Nothing to commit (or commit failed). Proceeding to version bump..."
+            )
 
         # 2. Bump Version (which creates a new commit and tag)
         current_version = get_current_version()
