@@ -85,10 +85,7 @@ filename = "setup.py"
 search = 'version="{current_version}"'
 replace = 'version="{new_version}"'
 
-[[tool.bumpversion.files]]
-filename = "vm_tool/cli.py"
-search = 'version="{current_version}"'
-replace = 'version="{new_version}"'
+
 
 [[tool.bumpversion.files]]
 filename = "pyproject.toml"

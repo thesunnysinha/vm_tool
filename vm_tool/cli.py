@@ -1,12 +1,17 @@
 import argparse
 import sys
+import importlib.metadata
 
 
 def main():
     parser = argparse.ArgumentParser(
         description="VM Tool: Setup, Provision, and Manage VMs"
     )
-    parser.add_argument("--version", action="version", version="1.0.43")
+    try:
+        version = importlib.metadata.version("vm_tool")
+    except importlib.metadata.PackageNotFoundError:
+        version = "unknown"
+    parser.add_argument("--version", action="version", version=version)
     parser.add_argument(
         "--verbose", "-v", action="store_true", help="Enable verbose output"
     )
