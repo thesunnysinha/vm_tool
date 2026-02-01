@@ -128,20 +128,38 @@ def get_current_version():
 
 
 def main():
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Automate git commits and pushes with version bumping."
+    )
+    parser.add_argument("--branch", "-b", help="Branch name to push to", default=None)
+    parser.add_argument("--message", "-m", help="Commit message", default=None)
+    args = parser.parse_args()
+
     # Setup virtual environment
     print("🔧 Setting up environment...")
     setup_environment()
     print()
 
-    # Ask for the branch name
-    branch_name = input("Enter the branch name: ").strip()
+    # Ask for the branch name if not provided
+    if args.branch:
+        branch_name = args.branch
+    else:
+        branch_name = input("Enter the branch name: ").strip()
 
-    if branch_name == "main":
+    if branch_name.lower() in ["main", "master"]:
         # 1. Commit User Changes FIRST
         print("Adding changes...")
         run_command("git add .")
 
-        commit_message = input("Enter the commit message for your changes: ").strip()
+        if args.message:
+            commit_message = args.message
+        else:
+            commit_message = input(
+                "Enter the commit message for your changes: "
+            ).strip()
+
         print("Committing changes...")
         # Try to commit changes
         result = run_command(f'git commit -m "{commit_message}"', check=False)
@@ -181,14 +199,22 @@ def main():
     else:
         # Create and switch to the new branch
         print(f"Creating and switching to branch: {branch_name}")
-        run_command(f"git checkout -b {branch_name}")
+        # Check if branch exists
+        result = run_command(f"git rev-parse --verify {branch_name}", check=False)
+        if result.returncode == 0:
+            run_command(f"git checkout {branch_name}")
+        else:
+            run_command(f"git checkout -b {branch_name}")
 
         # Add all changes
         print("Adding changes...")
         run_command("git add .")
 
         # Ask for commit message
-        commit_message = input("Enter the commit message: ").strip()
+        if args.message:
+            commit_message = args.message
+        else:
+            commit_message = input("Enter the commit message: ").strip()
 
         # Commit with the entered message
         print("Committing changes...")
