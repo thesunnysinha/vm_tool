@@ -6,7 +6,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="VM Tool: Setup, Provision, and Manage VMs"
     )
-    parser.add_argument("--version", action="version", version="1.0.41")
+    parser.add_argument("--version", action="version", version="1.0.42")
     parser.add_argument(
         "--verbose", "-v", action="store_true", help="Enable verbose output"
     )
