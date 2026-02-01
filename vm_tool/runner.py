@@ -473,6 +473,16 @@ class SetupRunner:
 
         # Dynamic Dependency Detection
         dependencies = self._get_compose_dependencies(compose_file)
+
+        # Ensure CLI-provided env_file is included in detection logic
+        if env_file:
+            # Normalize and check existence
+            clean_env_path = env_file[2:] if env_file.startswith("./") else env_file
+            if os.path.exists(clean_env_path):
+                # Check if already in dependencies
+                if not any(d["src"] == clean_env_path for d in dependencies):
+                    dependencies.append({"src": clean_env_path, "dest": clean_env_path})
+
         if dependencies:
             logger.info(
                 f"📦 Detected dependencies to copy: {[d['src'] for d in dependencies]}"
