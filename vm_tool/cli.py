@@ -236,6 +236,12 @@ def main():
         action="store_true",
         help="Preview deployment without executing (shows what would be deployed)",
     )
+    docker_parser.add_argument(
+        "--project-dir",
+        type=str,
+        default="~/app",
+        help="Target directory on the server for deployment (default: ~/app)",
+    )
 
     # Completion command
     completion_parser = subparsers.add_parser(
@@ -600,6 +606,7 @@ def main():
                 env_file=args.env_file,
                 deploy_command=args.deploy_command,
                 force=args.force,
+                project_dir=args.project_dir,
             )
 
             # Run health checks if specified

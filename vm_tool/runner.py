@@ -320,6 +320,7 @@ class SetupRunner:
         env_file: str = None,
         deploy_command: str = None,
         force: bool = False,
+        project_dir: str = "~/app",
     ):
         """Runs the Docker Compose deployment with idempotency."""
         from vm_tool.state import DeploymentState
@@ -391,7 +392,7 @@ class SetupRunner:
             "GITHUB_PROJECT_URL": self.github_project_url,
             "DEPLOY_MODE": "push",
             "SOURCE_PATH": os.getcwd(),  # Current working directory where vm_tool is run
-            "project_dest_dir": "~/app",
+            "project_dest_dir": project_dir,
             "GITHUB_REPOSITORY_OWNER": os.environ.get("GITHUB_REPOSITORY_OWNER", ""),
         }
 

@@ -19,6 +19,13 @@
 # Let's rely on 'synchronize' (rsync) if available, or just copy the compose file if user only provided that.
 
 # For MVP of 'deploy-docker', let's copy the DOCKER_COMPOSE_FILE_PATH and .env if exists.
+- name: Ensure Docker Compose file parent directory exists
+  file:
+    path: "{{ project_dest_dir }}/{{ DOCKER_COMPOSE_FILE_PATH | dirname }}"
+    state: directory
+    mode: '0755'
+  when: DOCKER_COMPOSE_FILE_PATH is defined and (DOCKER_COMPOSE_FILE_PATH | dirname) != ''
+
 - name: Copy Docker Compose file
   copy:
     src: "{{ SOURCE_PATH }}/{{ DOCKER_COMPOSE_FILE_PATH }}"
