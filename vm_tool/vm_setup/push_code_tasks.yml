@@ -31,16 +31,34 @@
     src: "{{ SOURCE_PATH }}/{{ DOCKER_COMPOSE_FILE_PATH }}"
     dest: "{{ project_dest_dir }}/{{ DOCKER_COMPOSE_FILE_PATH }}"
 
+# Handle dynamic dependencies (new method)
+- name: Ensure parent directories for dependencies exist
+  file:
+    path: "{{ project_dest_dir }}/{{ item.dest | dirname }}"
+    state: directory
+    mode: '0755'
+  loop: "{{ FILES_TO_COPY | default([]) }}"
+  when: FILES_TO_COPY is defined and (item.dest | dirname) != ''
+
+- name: Copy dependency files
+  copy:
+    src: "{{ SOURCE_PATH }}/{{ item.src }}"
+    dest: "{{ project_dest_dir }}/{{ item.dest }}"
+  loop: "{{ FILES_TO_COPY | default([]) }}"
+  when: FILES_TO_COPY is defined
+
+# Backward compatibility for single env file
 - name: Ensure Env file parent directory exists
   file:
     path: "{{ project_dest_dir }}/{{ ENV_FILE_PATH | default('.env') | dirname }}"
     state: directory
     mode: '0755'
-  when: ENV_FILE_PATH is defined and (ENV_FILE_PATH | dirname) != ''
+  when: FILES_TO_COPY is not defined and ENV_FILE_PATH is defined and (ENV_FILE_PATH | dirname) != ''
 
 - name: Copy Env file
   copy:
     src: "{{ SOURCE_PATH }}/{{ ENV_FILE_PATH | default('.env') }}"
+  when: FILES_TO_COPY is not defined
     dest: "{{ project_dest_dir }}/{{ ENV_FILE_PATH | default('.env') }}"
   failed_when: false
 

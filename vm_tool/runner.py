@@ -171,6 +171,75 @@ class SetupRunner:
         self.env_path = config.env_path
         self.env_data = config.env_data
 
+    def _get_compose_dependencies(self, compose_file: str) -> List[dict]:
+        """
+        Parses docker-compose file to find local file dependencies (env_files, volumes).
+        Returns a list of dicts: {'src': 'local/path', 'dest': 'remote/path'}
+        """
+        dependencies = []
+        if not os.path.exists(compose_file):
+            return dependencies
+
+        try:
+            with open(compose_file, "r") as f:
+                data = yaml.safe_load(f)
+
+            if not data or "services" not in data:
+                return dependencies
+
+            found_paths = set()
+
+            for service in data.get("services", {}).values():
+                # Check env_file
+                env_files = service.get("env_file", [])
+                if isinstance(env_files, str):
+                    env_files = [env_files]
+
+                for env_path in env_files:
+                    # Normalize local path
+                    if env_path.startswith("./"):
+                        clean_path = env_path[2:]
+                    else:
+                        clean_path = env_path
+
+                    # Only include relative paths that are files
+                    if not clean_path.startswith("/") and os.path.exists(clean_path):
+                        if clean_path not in found_paths:
+                            found_paths.add(clean_path)
+                            dependencies.append({"src": clean_path, "dest": clean_path})
+                    elif not os.path.exists(clean_path):
+                        logger.warning(
+                            f"⚠️  Referenced env_file not found locally: {clean_path}"
+                        )
+
+                # Check volumes (bind mounts)
+                volumes = service.get("volumes", [])
+                for vol in volumes:
+                    if isinstance(vol, str):
+                        parts = vol.split(":")
+                        if len(parts) >= 2:
+                            host_path = parts[0]
+                            # Check if it's a relative path bind mount
+                            if (
+                                host_path.startswith("./")
+                                or host_path.startswith("../")
+                            ) and os.path.exists(host_path):
+                                if host_path.startswith("./"):
+                                    clean_path = host_path[2:]
+                                else:
+                                    clean_path = host_path
+
+                                if clean_path not in found_paths:
+                                    found_paths.add(clean_path)
+                                    dependencies.append(
+                                        {"src": clean_path, "dest": clean_path}
+                                    )
+
+        except Exception as e:
+            logger.warning(f"Failed to parse compose file for dependencies: {e}")
+
+        return dependencies
+
     def _get_git_commit(self) -> Optional[str]:
         """Get current git commit hash if in a git repository."""
         import subprocess
@@ -401,6 +470,14 @@ class SetupRunner:
 
         if deploy_command:
             extravars["DEPLOY_COMMAND"] = deploy_command
+
+        # Dynamic Dependency Detection
+        dependencies = self._get_compose_dependencies(compose_file)
+        if dependencies:
+            logger.info(
+                f"📦 Detected dependencies to copy: {[d['src'] for d in dependencies]}"
+            )
+            extravars["FILES_TO_COPY"] = dependencies
 
         playbook_path = os.path.join(
             os.path.dirname(__file__), "vm_setup", "push_code.yml"
