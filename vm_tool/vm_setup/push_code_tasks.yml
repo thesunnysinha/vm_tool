@@ -58,8 +58,8 @@
 - name: Copy Env file
   copy:
     src: "{{ SOURCE_PATH }}/{{ ENV_FILE_PATH | default('.env') }}"
-  when: FILES_TO_COPY is not defined
     dest: "{{ project_dest_dir }}/{{ ENV_FILE_PATH | default('.env') }}"
+  when: FILES_TO_COPY is not defined
   failed_when: false
 
 - name: Deploy application
