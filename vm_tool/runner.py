@@ -294,6 +294,65 @@ class SetupRunner:
                 f"An error occurred while running the Ansible playbook: {str(e)}"
             )
 
+    def hydrate_env_from_secrets(
+        self, compose_file: str, secrets_map: dict, project_root: str = "."
+    ):
+        """
+        Scans compose file for env_files. If a file is missing locally,
+        checks secrets_map for a matching key (FILENAME_EXT -> FILENAME_EXT output as SNAKE_CASE)
+        and creates the file.
+        Example: env/backend.env -> checks secrets_map['BACKEND_ENV']
+        """
+        dependencies = self._get_compose_dependencies(compose_file)
+
+        # We need to find *potential* dependencies that might not exist yet.
+        # _get_compose_dependencies only returns existing ones.
+        # So we need to parse again broadly or just rely on what we find.
+        # Actually, _get_compose_dependencies skips missing files.
+        # So we should parse manually here to find *missing* ones.
+
+        try:
+            with open(compose_file, "r") as f:
+                data = yaml.safe_load(f)
+
+            if not data or "services" not in data:
+                return
+
+            for service in data.get("services", {}).values():
+                env_files = service.get("env_file", [])
+                if isinstance(env_files, str):
+                    env_files = [env_files]
+
+                for env_path in env_files:
+                    # Resolve path relative to project root
+                    full_path = os.path.join(project_root, env_path)
+
+                    if not os.path.exists(full_path):
+                        # Attempt to hydrate
+                        filename = os.path.basename(env_path)
+                        # Normalize keys: backend.env -> BACKEND_ENV
+                        secret_key = filename.replace(".", "_").upper()
+
+                        secret_value = secrets_map.get(secret_key)
+                        if secret_value:
+                            logger.info(
+                                f"💧 Hydrating {env_path} from secret {secret_key}"
+                            )
+                            # Ensure directory exists
+                            os.makedirs(os.path.dirname(full_path), exist_ok=True)
+                            with open(full_path, "w") as out:
+                                out.write(secret_value)
+                        else:
+                            logger.warning(
+                                f"⚠️  Missing env file {env_path} and no secret found for {secret_key}"
+                            )
+                    else:
+                        logger.debug(f"✅ Env file exists: {env_path}")
+
+        except Exception as e:
+            logger.error(f"Failed to hydrate env files: {e}")
+            raise
+
     def run_setup(self):
         """Runs the setup process using Ansible."""
         extravars = {

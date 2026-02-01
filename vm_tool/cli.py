@@ -168,6 +168,29 @@ def main():
         "--inventory", type=str, default="inventory.yml", help="Inventory file to use"
     )
 
+    # Hydrate Env command
+    hydrate_parser = subparsers.add_parser(
+        "hydrate-env", help="Hydrate missing env files from secrets"
+    )
+    hydrate_parser.add_argument(
+        "--compose-file",
+        type=str,
+        default="docker-compose.yml",
+        help="Path to docker-compose.yml",
+    )
+    hydrate_parser.add_argument(
+        "--secrets",
+        type=str,
+        required=True,
+        help="JSON string of GitHub secrets",
+    )
+    hydrate_parser.add_argument(
+        "--project-root",
+        type=str,
+        default=".",
+        help="Project root directory",
+    )
+
     # Docker Deploy command
     docker_parser = subparsers.add_parser(
         "deploy-docker", help="Deploy using Docker Compose"
@@ -635,6 +658,25 @@ def main():
 
         except Exception as e:
             print(f"Error: {e}")
+            sys.exit(1)
+
+    elif args.command == "hydrate-env":
+        try:
+            import json
+            from vm_tool.runner import SetupRunner, SetupRunnerConfig
+
+            secrets_map = json.loads(args.secrets)
+            config = SetupRunnerConfig(github_project_url="dummy")
+            runner = SetupRunner(config)
+
+            print("💧 Hydrating environment files from secrets...")
+            runner.hydrate_env_from_secrets(
+                compose_file=args.compose_file,
+                secrets_map=secrets_map,
+                project_root=args.project_root,
+            )
+        except Exception as e:
+            print(f"❌ Failed to hydrate env: {e}")
             sys.exit(1)
 
     elif args.command == "completion":
