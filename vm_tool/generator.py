@@ -345,7 +345,7 @@ jobs:
           
           # Replace absolute paths (from CI runner) with relative paths
           # This assumes the structure: /home/runner/work/repo/repo/ -> ./
-          sed -i 's|/home/runner/work/[^/]*/[^/]*||g' docker-compose.released.yml
+          sed -i 's|/home/runner/work/[^/]*/[^/]*|.|g' docker-compose.released.yml
           
           echo "✅ Generated combined Docker Compose file"
           cat docker-compose.released.yml
@@ -447,11 +447,9 @@ jobs:
             "--user" "${{ secrets.SSH_USERNAME }}"
           )
 
-          # Move .env if it exists and add to args
+          # Add .env if it exists
           if [ -f .env ]; then
-            mkdir -p env
-            mv .env env/.env
-            ARGS+=("--env-file" "env/.env")
+            ARGS+=("--env-file" ".env")
           fi
           
           vm_tool deploy-docker "${ARGS[@]}"
