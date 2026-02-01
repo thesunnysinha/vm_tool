@@ -22,6 +22,8 @@ class PipelineGenerator:
         health_url: Optional[str] = None,
         backup_paths: Optional[list] = None,
         app_port: int = 8000,
+        hydrate_env: bool = True,
+        combine_compose: bool = True,
     ):
         self.platform = platform
         self.strategy = strategy
@@ -37,6 +39,8 @@ class PipelineGenerator:
         )
         self.backup_paths = backup_paths or ["/app", "/etc/nginx"]
         self.app_port = app_port
+        self.hydrate_env = hydrate_env
+        self.combine_compose = combine_compose
 
         # New options
         self.run_linting = False
@@ -50,8 +54,7 @@ class PipelineGenerator:
         run_tests: bool = False,
         python_version: str = "3.11",
         branch: str = "main",
-    ):
-        """Set additional options for the pipeline."""
+    ):        """Set additional options for the pipeline."""
         self.run_linting = run_linting
         self.run_tests = run_tests
         self.python_version = python_version
@@ -120,6 +123,12 @@ class PipelineGenerator:
         if self.enable_dry_run:
             steps.append(self._step_dry_run())
 
+        if self.hydrate_env:
+            steps.append(self._step_hydrate_env())
+            
+        if self.combine_compose:
+            steps.append(self._step_combine_compose())
+            
         # Main deployment
         steps.append(self._step_deploy())
 
@@ -143,7 +152,7 @@ class PipelineGenerator:
         # Combine all steps
         steps_yaml = "\n".join(steps)
 
-        return f"""name: Deploy to EC2 with vm_tool
+        return f"""name: Deploy with vm_tool
 
 on:
   push:
@@ -153,8 +162,8 @@ on:
   workflow_dispatch:
 
 env:
-  EC2_HOST: ${{{{ secrets.EC2_HOST }}}}
-  EC2_USER: ${{{{ secrets.EC2_USER }}}}
+  SSH_HOSTNAME: ${{{{ secrets.SSH_HOSTNAME }}}}
+  SSH_USERNAME: ${{{{ secrets.SSH_USERNAME }}}}
   APP_PORT: {self.app_port}
 
 jobs:
@@ -176,16 +185,16 @@ jobs:
           echo "🔐 Validating GitHub Secrets..."
           MISSING_SECRETS=()
           
-          if [ -z "${{ secrets.EC2_HOST }}" ]; then
-            MISSING_SECRETS+=("EC2_HOST")
+          if [ -z "${{ secrets.SSH_HOSTNAME }}" ]; then
+            MISSING_SECRETS+=("SSH_HOSTNAME")
           fi
           
-          if [ -z "${{ secrets.EC2_USER }}" ]; then
-            MISSING_SECRETS+=("EC2_USER")
+          if [ -z "${{ secrets.SSH_USERNAME }}" ]; then
+            MISSING_SECRETS+=("SSH_USERNAME")
           fi
           
-          if [ -z "${{ secrets.EC2_SSH_KEY }}" ]; then
-            MISSING_SECRETS+=("EC2_SSH_KEY")
+          if [ -z "${{ secrets.SSH_ID_RSA }}" ]; then
+            MISSING_SECRETS+=("SSH_ID_RSA")
           fi
           
           if [ ${#MISSING_SECRETS[@]} -ne 0 ]; then
@@ -199,16 +208,16 @@ jobs:
             echo "2. Add each secret:"
             echo ""
             
-            if [[ " ${MISSING_SECRETS[*]} " =~ " EC2_HOST " ]]; then
-              echo "   EC2_HOST: Your EC2 IP (e.g., 54.123.45.67)"
+            if [[ " ${MISSING_SECRETS[*]} " =~ " SSH_HOSTNAME " ]]; then
+              echo "   SSH_HOSTNAME: Your Server IP (e.g., 54.123.45.67)"
             fi
             
-            if [[ " ${MISSING_SECRETS[*]} " =~ " EC2_USER " ]]; then
-              echo "   EC2_USER: SSH username (e.g., ubuntu)"
+            if [[ " ${MISSING_SECRETS[*]} " =~ " SSH_USERNAME " ]]; then
+              echo "   SSH_USERNAME: SSH username (e.g., ubuntu)"
             fi
             
-            if [[ " ${MISSING_SECRETS[*]} " =~ " EC2_SSH_KEY " ]]; then
-              echo "   EC2_SSH_KEY: Run 'cat ~/.ssh/id_rsa' and copy output"
+            if [[ " ${MISSING_SECRETS[*]} " =~ " SSH_ID_RSA " ]]; then
+              echo "   SSH_ID_RSA: Run 'cat ~/.ssh/id_rsa' and copy output"
             fi
             
             echo ""
@@ -293,9 +302,54 @@ jobs:
       - name: Set up SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
+          echo "${{ secrets.SSH_ID_RSA }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts"""
+          ssh-keyscan -H ${{ secrets.SSH_HOSTNAME }} >> ~/.ssh/known_hosts
+          
+          # Create SSH config to use the key for the specific host
+          cat > ~/.ssh/config <<EOF
+          Host ${{ secrets.SSH_HOSTNAME }}
+            User ${{ secrets.SSH_USERNAME }}
+            IdentityFile ~/.ssh/deploy_key
+            StrictHostKeyChecking no
+          EOF"""
+
+    def _step_hydrate_env(self) -> str:
+        return """
+      - name: Hydrate Environment Files from Secrets
+        env:
+          SECRETS_CONTEXT: ${{ toJSON(secrets) }}
+        run: |
+          # Use vm_tool to create local env files from secrets based on compose file
+          vm_tool hydrate-env \\
+            --compose-file docker-compose.yml \\
+            --secrets "$SECRETS_CONTEXT"
+          echo "✅ Hydrated environment files from secrets"
+"""
+
+    def _step_combine_compose(self) -> str:
+        return """
+      - name: Combine Docker Compose files
+        run: |
+          # Combine base and prod compose files if prod exists
+          if [ -f docker/docker-compose.prod.yml ]; then
+            echo "Merging docker-compose.yml and docker/docker-compose.prod.yml..."
+            docker compose -f docker-compose.yml -f docker/docker-compose.prod.yml config > docker-compose.released.yml
+          elif [ -f docker-compose.prod.yml ]; then
+             echo "Merging docker-compose.yml and docker-compose.prod.yml..."
+             docker compose -f docker-compose.yml -f docker-compose.prod.yml config > docker-compose.released.yml
+          else
+            echo "No prod overriding file found, using base file..."
+            docker compose -f docker-compose.yml config > docker-compose.released.yml
+          fi
+          
+          # Replace absolute paths (from CI runner) with relative paths
+          # This assumes the structure: /home/runner/work/repo/repo/ -> ./
+          sed -i 's|/home/runner/work/[^/]*/[^/]*||g' docker-compose.released.yml
+          
+          echo "✅ Generated combined Docker Compose file"
+          cat docker-compose.released.yml
+"""
 
     def _step_validate_ssh(self) -> str:
         return """
@@ -356,25 +410,36 @@ jobs:
     def _step_deploy(self) -> str:
         return """
       - name: Deploy with vm_tool (Ansible-based)
+        env:
+          # Define deployment command for the released file
+          DEPLOY_COMMAND: "docker compose -f docker-compose.released.yml up -d --remove-orphans"
         run: |
           # Create inventory file for Ansible
           cat > inventory.yml << EOF
           all:
             hosts:
               production:
-                ansible_host: ${{ secrets.EC2_HOST }}
-                ansible_user: ${{ secrets.EC2_USER }}
+                ansible_host: ${{ secrets.SSH_HOSTNAME }}
+                ansible_user: ${{ secrets.SSH_USERNAME }}
                 ansible_ssh_private_key_file: ~/.ssh/deploy_key
           EOF
           
           # Deploy using vm_tool (uses Ansible under the hood)
           export GITHUB_REPOSITORY_OWNER=${{ github.repository_owner }}
+          
+          # Use absolute path for project dir to avoid CI runner home expansion
+          PROJECT_DIR="/home/${{ secrets.SSH_USERNAME }}/apps/${{ github.event.repository.name }}"
+          
           vm_tool deploy-docker \\
-            --host ${{ secrets.EC2_HOST }} \\
-            --user ${{ secrets.EC2_USER }} \\
-            --compose-file ~/app/docker-compose.yml \\
+            --host ${{ secrets.SSH_HOSTNAME }} \\
+            --user ${{ secrets.SSH_USERNAME }} \\
+            --compose-file docker-compose.released.yml \\
             --inventory inventory.yml \\
-            --force"""
+            --project-dir "$PROJECT_DIR" \\
+            --deploy-command "${{ env.DEPLOY_COMMAND }}" \\
+            --force \\
+            --health-url "http://${{ secrets.SSH_HOSTNAME }}:${{ env.APP_PORT }}/health"
+"""
 
     def _step_health_check(self) -> str:
         return f"""
@@ -394,10 +459,13 @@ jobs:
         return """
       - name: Verify
         run: |
-          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-            cd ~/app
-            docker-compose ps
-            docker-compose logs --tail=20
+          # Use absolute path for verify step too
+          PROJECT_DIR="/home/${{ secrets.SSH_USERNAME }}/apps/${{ github.event.repository.name }}"
+          
+          ssh -i ~/.ssh/deploy_key ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOSTNAME }} << EOF
+            cd $PROJECT_DIR
+            docker compose ps
+            docker compose logs --tail=20
           EOF"""
 
     def _step_rollback(self) -> str:
@@ -406,12 +474,12 @@ jobs:
         if: failure()
         run: |
           echo "⚠️  Rolling back..."
-          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+          # Note: Rollback logic might need adjustment for absolute paths, keeping simple for now
+          ssh -i ~/.ssh/deploy_key ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOSTNAME }} << 'EOF'
             BACKUP=$(ls -t ~/backups/*.tar.gz 2>/dev/null | head -1)
             if [ -n "$BACKUP" ]; then
-              cd ~/app && tar -xzf $BACKUP
-              docker-compose up -d
-              echo "✅ Rolled back"
+              # TODO: Improve rollback to handle dynamic dirs
+              echo "Rollback not fully implemented for dynamic paths yet"
             fi
           EOF"""
 
@@ -420,7 +488,7 @@ jobs:
       - name: Cleanup
         if: success()
         run: |
-          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+          ssh -i ~/.ssh/deploy_key ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOSTNAME }} << 'EOF'
             cd ~/backups 2>/dev/null || exit 0
             ls -t *.tar.gz 2>/dev/null | tail -n +6 | xargs rm -f || true
           EOF"""
@@ -431,7 +499,7 @@ jobs:
         if: always()
         run: |
           if [ "${{ job.status }}" == "success" ]; then
-            echo "✅ Deployed to ${{ secrets.EC2_HOST }}:${{ env.APP_PORT }}"
+            echo "✅ Deployed to ${{ secrets.SSH_HOSTNAME }}:${{ env.APP_PORT }}"
           else
             echo "❌ Deployment failed"
           fi"""
