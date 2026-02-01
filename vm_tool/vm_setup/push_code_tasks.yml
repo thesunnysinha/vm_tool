@@ -31,6 +31,13 @@
     src: "{{ SOURCE_PATH }}/{{ DOCKER_COMPOSE_FILE_PATH }}"
     dest: "{{ project_dest_dir }}/{{ DOCKER_COMPOSE_FILE_PATH }}"
 
+- name: Ensure Env file parent directory exists
+  file:
+    path: "{{ project_dest_dir }}/{{ ENV_FILE_PATH | default('.env') | dirname }}"
+    state: directory
+    mode: '0755'
+  when: ENV_FILE_PATH is defined and (ENV_FILE_PATH | dirname) != ''
+
 - name: Copy Env file
   copy:
     src: "{{ SOURCE_PATH }}/{{ ENV_FILE_PATH | default('.env') }}"
