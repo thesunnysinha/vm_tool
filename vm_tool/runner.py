@@ -215,25 +215,36 @@ class SetupRunner:
                 # Check volumes (bind mounts)
                 volumes = service.get("volumes", [])
                 for vol in volumes:
+                    host_path = None
                     if isinstance(vol, str):
                         parts = vol.split(":")
                         if len(parts) >= 2:
                             host_path = parts[0]
-                            # Check if it's a relative path bind mount
-                            if (
-                                host_path.startswith("./")
-                                or host_path.startswith("../")
-                            ) and os.path.exists(host_path):
-                                if host_path.startswith("./"):
-                                    clean_path = host_path[2:]
-                                else:
-                                    clean_path = host_path
+                    elif isinstance(vol, dict):
+                        # Handle object-style volume definitions
+                        if vol.get("type") == "bind":
+                            host_path = vol.get("source")
+                        elif "source" in vol:  # Sometimes type is omitted
+                            host_path = vol.get("source")
 
-                                if clean_path not in found_paths:
-                                    found_paths.add(clean_path)
-                                    dependencies.append(
-                                        {"src": clean_path, "dest": clean_path}
-                                    )
+                    if host_path:
+                        # Check if it's a relative path bind mount
+                        # Normalize path for existence check
+                        if host_path.startswith("./"):
+                            check_path = host_path[2:]
+                        else:
+                            check_path = host_path
+
+                        if (
+                            host_path.startswith("./")
+                            or host_path.startswith("../")
+                            or not host_path.startswith("/")
+                        ) and os.path.exists(check_path):
+                            if check_path not in found_paths:
+                                found_paths.add(check_path)
+                                dependencies.append(
+                                    {"src": check_path, "dest": check_path}
+                                )
 
         except Exception as e:
             logger.warning(f"Failed to parse compose file for dependencies: {e}")
