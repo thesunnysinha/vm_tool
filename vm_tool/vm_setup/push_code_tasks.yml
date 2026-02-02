@@ -40,6 +40,18 @@
   loop: "{{ FILES_TO_COPY | default([]) }}"
   when: FILES_TO_COPY is defined and (item.dest | dirname) != ''
 
+- name: Clean up conflicting directories
+  shell: |
+     target="{{ project_dest_dir }}/{{ item.dest }}"
+     if [ -d "$target" ]; then
+       rm -rf "$target"
+       echo "removed_directory"
+     fi
+  loop: "{{ FILES_TO_COPY | default([]) }}"
+  register: dir_cleanup
+  changed_when: "'removed_directory' in dir_cleanup.stdout"
+  when: FILES_TO_COPY is defined
+
 - name: Copy dependency files
   copy:
     src: "{{ SOURCE_PATH }}/{{ item.src }}"
