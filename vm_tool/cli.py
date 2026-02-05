@@ -824,6 +824,10 @@ def main():
             if deployment_type == "custom":
                 deploy_command = input("Enter custom deployment command: ").strip()
 
+        except Exception as e:
+            print(f"❌ Pipeline generation failed: {e}")
+            sys.exit(1)
+
     elif args.command == "prepare-release":
         from vm_tool.release import ReleaseManager
         manager = ReleaseManager(verbose=args.verbose)
@@ -835,10 +839,6 @@ def main():
                 strip_volumes=args.strip_volumes,
                 fix_paths=args.fix_paths
             )
-        except Exception as e:
-            print(f"❌ Release preparation failed: {e}")
-            sys.exit(1)
-
         except Exception as e:
             print(f"❌ Release preparation failed: {e}")
             sys.exit(1)
