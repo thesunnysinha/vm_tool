@@ -265,10 +265,20 @@ def main():
         help="Preview deployment without executing (shows what would be deployed)",
     )
     docker_parser.add_argument(
+        "--repo-name",
+        type=str,
+        help="Repository name (used to default project-dir to ~/apps/NAME)",
+    )
+    docker_parser.add_argument(
         "--project-dir",
         type=str,
-        default="~/app",
-        help="Target directory on the server for deployment (default: ~/app)",
+        help="Target directory on the server (default: ~/apps/<repo-name>)",
+    )
+    docker_parser.add_argument(
+        "--health-timeout",
+        type=int,
+        default=300,
+        help="Timeout in seconds for health checks (default: 300)",
     )
 
     # Completion command
@@ -297,6 +307,32 @@ def main():
         default="github",
         choices=["github"],
         help="CI/CD Platform",
+    )
+
+    # Release Prep command
+    release_parser = subparsers.add_parser(
+        "prepare-release", help="Prepare Docker Compose file for release"
+    )
+    release_parser.add_argument(
+        "--base-file", required=True, help="Base docker-compose file"
+    )
+    release_parser.add_argument(
+        "--prod-file", required=True, help="Production overlay file"
+    )
+    release_parser.add_argument("--output", required=True, help="Output file path")
+    release_parser.add_argument(
+        "--strip-volumes", help="Comma-separated list of services to strip volumes from"
+    )
+    release_parser.add_argument(
+        "--fix-paths", action="store_true", help="Fix CI absolute paths to relative"
+    )
+
+    # Setup CI command
+    setup_ci_parser = subparsers.add_parser(
+        "setup-ci", help="Configure CI environment (SSH, Inventory)"
+    )
+    setup_ci_parser.add_argument(
+        "--provider", default="github", choices=["github"], help="CI Provider"
     )
 
     # Secrets command
@@ -612,6 +648,14 @@ def main():
                 "compose_file", "docker-compose.yml"
             )
 
+            # Project Directory Logic
+            project_dir = args.project_dir
+            if not project_dir:
+                if args.repo_name:
+                    project_dir = f"~/apps/{args.repo_name}"
+                else:
+                    project_dir = "~/app"
+            
             # Dry-run mode: show what would be deployed
             if args.dry_run:
                 print("\n🔍 DRY-RUN MODE - No changes will be made\n")
@@ -619,6 +663,7 @@ def main():
                 print(f"   Target Host: {host or 'from inventory'}")
                 print(f"   SSH User: {user or 'from inventory'}")
                 print(f"   Compose File: {compose_file}")
+                print(f"   Project Dir: {project_dir}")
                 print(f"   Inventory: {args.inventory}")
                 if args.env_file:
                     print(f"   Env File: {args.env_file}")
@@ -651,15 +696,15 @@ def main():
                 env_file=args.env_file,
                 deploy_command=args.deploy_command,
                 force=args.force,
-                project_dir=args.project_dir,
+                project_dir=project_dir,
             )
 
             # Run health checks if specified
             if host and (args.health_check or args.health_port or args.health_url):
                 from vm_tool.health import SmokeTestSuite
 
-                print("\n🏥 Running Health Checks...")
-                suite = SmokeTestSuite(host)
+                print(f"\n🏥 Running Health Checks (Timeout: {args.health_timeout}s)...")
+                suite = SmokeTestSuite(host, timeout=args.health_timeout)
 
                 if args.health_port:
                     suite.add_port_check(args.health_port)
@@ -779,7 +824,37 @@ def main():
             if deployment_type == "custom":
                 deploy_command = input("Enter custom deployment command: ").strip()
 
-            elif deployment_type == "docker":
+    elif args.command == "prepare-release":
+        from vm_tool.release import ReleaseManager
+        manager = ReleaseManager(verbose=args.verbose)
+        try:
+            manager.prepare_release(
+                base_file=args.base_file,
+                prod_file=args.prod_file,
+                output_file=args.output,
+                strip_volumes=args.strip_volumes,
+                fix_paths=args.fix_paths
+            )
+        except Exception as e:
+            print(f"❌ Release preparation failed: {e}")
+            sys.exit(1)
+
+        except Exception as e:
+            print(f"❌ Release preparation failed: {e}")
+            sys.exit(1)
+
+    elif args.command == "setup-ci":
+        from vm_tool.runner import SetupRunner
+        # No config needed for this utility
+        try:
+             # We can add a static method or simple function for this
+             SetupRunner.setup_ci_environment(provider=args.provider)
+             print("✅ CI Environment configured successfully")
+        except Exception as e:
+             print(f"❌ CI Setup failed: {e}")
+             sys.exit(1)
+
+    elif deployment_type == "docker":
                 docker_compose_file = (
                     input(
                         "Enter Docker Compose file name [docker-compose.yml]: "

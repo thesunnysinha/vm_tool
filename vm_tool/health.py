@@ -120,9 +120,9 @@ class HealthCheck:
 class SmokeTestSuite:
     """Manages a suite of smoke tests."""
 
-    def __init__(self, host: str):
+    def __init__(self, host: str, timeout: int = 300):
         self.host = host
-        self.health_check = HealthCheck(host)
+        self.health_check = HealthCheck(host, timeout=timeout)
         self.tests: List[Dict] = []
 
     def add_port_check(self, port: int, name: str = None):

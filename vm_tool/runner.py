@@ -605,3 +605,59 @@ class SetupRunner:
             if host:
                 state.mark_failed(host, service_name, str(e))
             raise
+
+    @staticmethod
+    def setup_ci_environment(provider="github"):
+        """
+        Configures CI environment (SSH, Inventory) based on standard env vars.
+        Inputs (Env Vars): SSH_ID_RSA, SSH_HOSTNAME, SSH_USERNAME
+        Outputs: ~/.ssh/deploy_key, inventory.yml
+        """
+        ssh_key = os.environ.get("SSH_ID_RSA")
+        ssh_host = os.environ.get("SSH_HOSTNAME")
+        ssh_user = os.environ.get("SSH_USERNAME")
+
+        missing = []
+        if not ssh_key:
+            missing.append("SSH_ID_RSA")
+        if not ssh_host:
+            missing.append("SSH_HOSTNAME")
+        if not ssh_user:
+            missing.append("SSH_USERNAME")
+
+        if missing:
+            raise ValueError(
+                f"Missing required environment variables: {', '.join(missing)}"
+            )
+
+        # 1. Setup SSH Key
+        ssh_dir = os.path.expanduser("~/.ssh")
+        os.makedirs(ssh_dir, exist_ok=True)
+        key_path = os.path.join(ssh_dir, "deploy_key")
+
+        # Clean newlines if potentially mangled
+        ssh_key_clean = ssh_key.replace(r"\n", "\n")
+
+        with open(key_path, "w") as f:
+            f.write(ssh_key_clean)
+        os.chmod(key_path, 0o600)
+        logger.info(f"✅ SSH key written to {key_path}")
+
+        # 2. Create Inventory
+        inventory_content = {
+            "all": {
+                "hosts": {
+                    "production": {
+                        "ansible_host": ssh_host,
+                        "ansible_user": ssh_user,
+                        "ansible_ssh_private_key_file": key_path,
+                        # Using standard CI strict checking disabled for automation
+                        "ansible_ssh_common_args": "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=60 -o ServerAliveCountMax=10",
+                    }
+                }
+            }
+        }
+
+        with open("inventory.yml", "w") as f:
+            yaml.dump(inventory_content, f)
+        logger.info("✅ inventory.yml created")
