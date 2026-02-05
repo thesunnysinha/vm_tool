@@ -655,7 +655,7 @@ def main():
                     project_dir = f"~/apps/{args.repo_name}"
                 else:
                     project_dir = "~/app"
-            
+
             # Dry-run mode: show what would be deployed
             if args.dry_run:
                 print("\n🔍 DRY-RUN MODE - No changes will be made\n")
@@ -703,7 +703,9 @@ def main():
             if host and (args.health_check or args.health_port or args.health_url):
                 from vm_tool.health import SmokeTestSuite
 
-                print(f"\n🏥 Running Health Checks (Timeout: {args.health_timeout}s)...")
+                print(
+                    f"\n🏥 Running Health Checks (Timeout: {args.health_timeout}s)..."
+                )
                 suite = SmokeTestSuite(host, timeout=args.health_timeout)
 
                 if args.health_port:
@@ -771,6 +773,7 @@ def main():
 
     elif args.command == "prepare-release":
         from vm_tool.release import ReleaseManager
+
         manager = ReleaseManager(verbose=args.verbose)
         try:
             manager.prepare_release(
@@ -778,7 +781,7 @@ def main():
                 prod_file=args.prod_file,
                 output_file=args.output,
                 strip_volumes=args.strip_volumes,
-                fix_paths=args.fix_paths
+                fix_paths=args.fix_paths,
             )
         except Exception as e:
             print(f"❌ Release preparation failed: {e}")
@@ -786,14 +789,15 @@ def main():
 
     elif args.command == "setup-ci":
         from vm_tool.runner import SetupRunner
+
         # No config needed for this utility
         try:
-             # We can add a static method or simple function for this
-             SetupRunner.setup_ci_environment(provider=args.provider)
-             print("✅ CI Environment configured successfully")
+            # We can add a static method or simple function for this
+            SetupRunner.setup_ci_environment(provider=args.provider)
+            print("✅ CI Environment configured successfully")
         except Exception as e:
-             print(f"❌ CI Setup failed: {e}")
-             sys.exit(1)
+            print(f"❌ CI Setup failed: {e}")
+            sys.exit(1)
 
     elif args.command == "generate-pipeline":
         try:
@@ -850,8 +854,7 @@ def main():
             if deployment_type == "custom":
                 deploy_command = input("Enter custom deployment command: ").strip()
 
-
-    elif deployment_type == "docker":
+            elif deployment_type == "docker":
                 docker_compose_file = (
                     input(
                         "Enter Docker Compose file name [docker-compose.yml]: "
