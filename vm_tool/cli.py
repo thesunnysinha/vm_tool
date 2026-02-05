@@ -769,6 +769,32 @@ def main():
         else:
             print_completion(args.shell)
 
+    elif args.command == "prepare-release":
+        from vm_tool.release import ReleaseManager
+        manager = ReleaseManager(verbose=args.verbose)
+        try:
+            manager.prepare_release(
+                base_file=args.base_file,
+                prod_file=args.prod_file,
+                output_file=args.output,
+                strip_volumes=args.strip_volumes,
+                fix_paths=args.fix_paths
+            )
+        except Exception as e:
+            print(f"❌ Release preparation failed: {e}")
+            sys.exit(1)
+
+    elif args.command == "setup-ci":
+        from vm_tool.runner import SetupRunner
+        # No config needed for this utility
+        try:
+             # We can add a static method or simple function for this
+             SetupRunner.setup_ci_environment(provider=args.provider)
+             print("✅ CI Environment configured successfully")
+        except Exception as e:
+             print(f"❌ CI Setup failed: {e}")
+             sys.exit(1)
+
     elif args.command == "generate-pipeline":
         try:
             from vm_tool.generator import PipelineGenerator
@@ -824,35 +850,6 @@ def main():
             if deployment_type == "custom":
                 deploy_command = input("Enter custom deployment command: ").strip()
 
-        except Exception as e:
-            print(f"❌ Pipeline generation failed: {e}")
-            sys.exit(1)
-
-    elif args.command == "prepare-release":
-        from vm_tool.release import ReleaseManager
-        manager = ReleaseManager(verbose=args.verbose)
-        try:
-            manager.prepare_release(
-                base_file=args.base_file,
-                prod_file=args.prod_file,
-                output_file=args.output,
-                strip_volumes=args.strip_volumes,
-                fix_paths=args.fix_paths
-            )
-        except Exception as e:
-            print(f"❌ Release preparation failed: {e}")
-            sys.exit(1)
-
-    elif args.command == "setup-ci":
-        from vm_tool.runner import SetupRunner
-        # No config needed for this utility
-        try:
-             # We can add a static method or simple function for this
-             SetupRunner.setup_ci_environment(provider=args.provider)
-             print("✅ CI Environment configured successfully")
-        except Exception as e:
-             print(f"❌ CI Setup failed: {e}")
-             sys.exit(1)
 
     elif deployment_type == "docker":
                 docker_compose_file = (
