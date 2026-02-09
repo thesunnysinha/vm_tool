@@ -635,8 +635,13 @@ class SetupRunner:
         os.makedirs(ssh_dir, exist_ok=True)
         key_path = os.path.join(ssh_dir, "deploy_key")
 
-        # Clean newlines if potentially mangled
-        ssh_key_clean = ssh_key.replace(r"\n", "\n")
+        # Handle both literal \n strings and actual newlines
+        # GitHub secrets might store keys with literal \n or actual newlines
+        ssh_key_clean = ssh_key.replace("\\n", "\n")
+
+        # Ensure the key has proper formatting
+        if not ssh_key_clean.endswith("\n"):
+            ssh_key_clean += "\n"
 
         with open(key_path, "w") as f:
             f.write(ssh_key_clean)
