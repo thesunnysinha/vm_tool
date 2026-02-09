@@ -523,6 +523,10 @@ class SetupRunner:
             f"Starting Docker deployment using {compose_file} on {target_inventory}..."
         )
 
+        # Debug: Log the project_dir value
+        logger.info(f"🔍 DEBUG: project_dir parameter = {project_dir}")
+        print(f"🔍 DEBUG: Deploying to project directory: {project_dir}")
+
         extravars = {
             "ansible_python_interpreter": "/usr/bin/python3",
             "DOCKER_COMPOSE_FILE_PATH": compose_file,
