@@ -17,7 +17,7 @@
 
   tasks:
     - name: Verify kubectl is available
-      command: kubectl version --client --short
+      command: kubectl version --client
       register: kubectl_version
       changed_when: false
 
