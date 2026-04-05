@@ -99,26 +99,45 @@
         manifest_apply_path: "{{ copied_manifest.dest | default('') }}"
       when: deploy_method == 'manifest' and copied_manifest is defined
 
-    - name: Apply Kubernetes manifests (dry-run)
-      shell: >
-        find {{ manifest_apply_path }} -name '*.yaml' -o -name '*.yml' | sort |
-        xargs -I{} kubectl --kubeconfig {{ kubeconfig_path }}
-        apply -f {} --namespace {{ k8s_namespace }} --dry-run=server
+    - name: Find manifest files (dry-run)
+      shell: find {{ manifest_apply_path }} -name '*.yaml' -o -name '*.yml' | sort
+      register: manifest_files_dry
+      changed_when: false
+      when: deploy_method == 'manifest' and k8s_manifest != '' and dry_run
+
+    - name: Apply manifests (dry-run)
+      command: >
+        kubectl --kubeconfig {{ kubeconfig_path }}
+        apply -f {{ item }}
+        --namespace {{ k8s_namespace }} --dry-run=server
+      loop: "{{ manifest_files_dry.stdout_lines | default([]) }}"
       when: deploy_method == 'manifest' and k8s_manifest != '' and dry_run
       register: manifest_dry_run
+      ignore_errors: true
 
-    - name: Show dry-run result
-      debug:
-        var: manifest_dry_run.stdout_lines
-      when: deploy_method == 'manifest' and dry_run and manifest_dry_run is defined
-
-    - name: Apply Kubernetes manifests
-      shell: >
-        find {{ manifest_apply_path }} -name '*.yaml' -o -name '*.yml' | sort |
-        xargs -I{} kubectl --kubeconfig {{ kubeconfig_path }}
-        apply -f {} --namespace {{ k8s_namespace }}
+    - name: Find manifest files
+      shell: find {{ manifest_apply_path }} -name '*.yaml' -o -name '*.yml' | sort
+      register: manifest_files
+      changed_when: false
       when: deploy_method == 'manifest' and k8s_manifest != '' and not dry_run
+
+    - name: Apply each manifest
+      command: >
+        kubectl --kubeconfig {{ kubeconfig_path }}
+        apply -f {{ item }}
+        --namespace {{ k8s_namespace }}
+      loop: "{{ manifest_files.stdout_lines | default([]) }}"
       register: manifest_apply
+      when: deploy_method == 'manifest' and k8s_manifest != '' and not dry_run
+      ignore_errors: true
+
+    - name: Report failed manifests
+      debug:
+        msg: "WARNING: Failed to apply {{ item.item }}: {{ item.stderr | default('unknown error') }}"
+      loop: "{{ manifest_apply.results | default([]) }}"
+      when: item.rc is defined and item.rc != 0
+      loop_control:
+        label: "{{ item.item | default('unknown') }}"
 
     - name: Wait for rollout to complete (manifest)
       command: >
