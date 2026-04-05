@@ -54,7 +54,8 @@ class PipelineGenerator:
         run_tests: bool = False,
         python_version: str = "3.11",
         branch: str = "main",
-    ):        """Set additional options for the pipeline."""
+    ):
+        """Set additional options for the pipeline."""
         self.run_linting = run_linting
         self.run_tests = run_tests
         self.python_version = python_version

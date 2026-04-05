@@ -14,9 +14,9 @@ def test_generate_github_pipeline(mock_fs):
 
     # Check content
     assert "vm_tool deploy-docker" in content
-    assert "EC2_HOST" in content
-    assert "EC2_USER" in content
-    assert "EC2_SSH_KEY" in content
+    assert "SSH_HOSTNAME" in content
+    assert "SSH_USERNAME" in content
+    assert "SSH_ID_RSA" in content
     assert "Validate Required Secrets" in content
     assert "Set up SSH" in content
 
@@ -41,9 +41,9 @@ def test_generate_github_pipeline_custom_context(mock_fs):
     )
     content = generator.generate()
 
-    assert "EC2_HOST" in content
-    assert "EC2_USER" in content
-    assert "EC2_SSH_KEY" in content
+    assert "SSH_HOSTNAME" in content
+    assert "SSH_USERNAME" in content
+    assert "SSH_ID_RSA" in content
 
 
 def test_generate_github_pipeline_docker(mock_fs):
@@ -59,8 +59,8 @@ def test_generate_github_pipeline_docker(mock_fs):
     content = generator.generate()
 
     assert "vm_tool deploy-docker" in content
-    assert "EC2_HOST" in content
-    assert "EC2_USER" in content
+    assert "SSH_HOSTNAME" in content
+    assert "SSH_USERNAME" in content
     assert "Validate Required Secrets" in content
 
 
@@ -76,7 +76,6 @@ def test_generate_github_pipeline_custom_strategy(mock_fs):
     content = generator.generate()
 
     assert "vm_tool deploy-docker" in content
-    assert "EC2_HOST" in content
 
 
 def test_generate_unsupported_platform():

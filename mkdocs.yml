@@ -1,10 +1,40 @@
-site_name: VM Tool Documentation
+site_name: VM Tool
 site_url: https://vm-tool.sunnysinha.online/
+site_description: A comprehensive deployment automation platform for Docker and Kubernetes applications
+repo_url: https://github.com/thesunnysinha/vm_tool
+repo_name: thesunnysinha/vm_tool
+edit_uri: edit/main/docs/
+
 theme:
   name: material
   palette:
-    primary: teal
-    accent: purple
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: cyan
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: cyan
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.footer
+    - content.code.copy
+    - content.code.annotate
+    - search.highlight
+    - search.suggest
+    - toc.follow
+  icon:
+    repo: fontawesome/brands/github
 
 plugins:
   - search
@@ -12,15 +42,50 @@ plugins:
       handlers:
         python:
           paths: [.]
+          options:
+            show_source: true
+            show_root_heading: true
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
 
 nav:
   - Home: index.md
-  - Usage Guide: usage.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Quick Start: getting-started/quickstart.md
+  - User Guide:
+      - Configuration & Profiles: usage.md
+      - Docker Deployment: deployment-approaches.md
+      - Kubernetes Deployment: guide/kubernetes.md
+      - Health Checks: guide/health-checks.md
+      - Pipeline Generation: generator.md
+  - Advanced:
+      - SSH Key Setup: ssh-key-setup.md
+      - EC2 + GitHub Actions: ec2-github-actions-guide.md
+      - Secrets Management: guide/secrets.md
+  - Reference:
+      - CLI Commands: reference/cli.md
+      - Architecture: reference/architecture.md
+      - Module Guide: MODULE_GUIDE.md
+      - Python API:
+          - Runner: reference/runner.md
+          - SSH: reference/ssh.md
   - Features: features.md
-  - Deployment Approaches: deployment-approaches.md
-  - Pipeline Generator: generator.md
-  - EC2 Deployment: ec2-github-actions-guide.md
-  - SSH Key Setup: ssh-key-setup.md
-  - API Reference:
-      - Runner: reference/runner.md
-      - SSH: reference/ssh.md

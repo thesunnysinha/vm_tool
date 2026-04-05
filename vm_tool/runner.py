@@ -5,7 +5,7 @@ from typing import List, Optional
 
 import ansible_runner
 import yaml
-from pydantic import BaseModel, Field, model_validator, validator
+from pydantic import BaseModel, Field, model_validator
 
 # Configure logging
 logging.basicConfig(
@@ -60,55 +60,30 @@ class SetupRunnerConfig(BaseModel):
         description="Environment data to dump into the file (optional, should be a dict)",
     )
 
-    @validator("env_path", always=True)
-    def check_env_path_with_env_data(cls, v, values):
-        """If env_data is provided, env_path must also be provided."""
-        if values.get("env_data") is not None and not v:
+    @model_validator(mode="after")
+    def check_paired_fields(self):
+        """Validate that paired fields are both provided or both absent."""
+        if self.env_data is not None and not self.env_path:
             raise ValueError("env_path must be provided if env_data is specified")
-        return v
-
-    @validator("env_data", always=True)
-    def check_env_data_with_env_path(cls, v, values):
-        """If env_path is provided, env_data must also be provided."""
-        if values.get("env_path") is not None and v is None:
+        if self.env_path is not None and self.env_data is None:
             raise ValueError("env_data must be provided if env_path is specified")
-        return v
-
-    @validator("dockerhub_password", always=True)
-    def check_dockerhub_password(cls, v, values):
-        """Ensures that a password is provided if a DockerHub username is set."""
-        if values.get("dockerhub_username") and not v:
+        if self.dockerhub_username and not self.dockerhub_password:
             raise ValueError(
                 "DockerHub password must be provided if DockerHub username is specified"
             )
-        return v
-
-    @validator("dockerhub_username", always=True)
-    def check_dockerhub_username(cls, v, values):
-        """Ensures that a username is provided if a DockerHub password is set."""
-        if values.get("dockerhub_password") and not v:
+        if self.dockerhub_password and not self.dockerhub_username:
             raise ValueError(
                 "DockerHub username must be provided if DockerHub password is specified"
             )
-        return v
-
-    @validator("github_token", always=True)
-    def check_github_token(cls, v, values):
-        """Ensures that a GitHub token is provided if a GitHub username is set."""
-        if values.get("github_username") and not v:
+        if self.github_username and not self.github_token:
             raise ValueError(
                 "GitHub token must be provided if GitHub username is specified"
             )
-        return v
-
-    @validator("github_username", always=True)
-    def check_github_username(cls, v, values):
-        """Ensures that a GitHub username is provided if a GitHub token is set."""
-        if values.get("github_token") and not v:
+        if self.github_token and not self.github_username:
             raise ValueError(
                 "GitHub username must be provided if GitHub token is specified"
             )
-        return v
+        return self
 
 
 class SSHConfig(BaseModel):
@@ -450,6 +425,147 @@ class SetupRunner:
         self._run_ansible_playbook(extravars, "monitoring.yml")
         logger.info("Monitoring setup completed.")
 
+    def run_k8s_deploy(
+        self,
+        deploy_method: str = "manifest",
+        namespace: str = "default",
+        manifest: str = None,
+        helm_chart: str = None,
+        helm_release: str = None,
+        helm_values: str = None,
+        kubeconfig: str = None,
+        inventory_file: str = "inventory.yml",
+        host: str = None,
+        user: str = None,
+        timeout: int = 300,
+        dry_run: bool = False,
+        force: bool = False,
+    ):
+        """Deploy to Kubernetes using kubectl/helm via Ansible.
+
+        Args:
+            deploy_method: 'manifest' or 'helm'
+            namespace: Kubernetes namespace
+            manifest: Path to K8s manifest file(s) or kustomization directory
+            helm_chart: Helm chart name/path
+            helm_release: Helm release name
+            helm_values: Path to Helm values file
+            kubeconfig: Path to kubeconfig file
+            inventory_file: Ansible inventory file
+            host: Target host (generates dynamic inventory)
+            user: SSH user for target host
+            timeout: Rollout timeout in seconds
+            dry_run: Preview without applying
+            force: Force redeployment
+        """
+        from vm_tool.state import DeploymentState
+
+        state = DeploymentState()
+
+        # Determine what to hash for idempotency
+        hash_target = manifest or helm_values or helm_chart or ""
+        if hash_target and os.path.exists(hash_target):
+            deploy_hash = state.compute_hash(hash_target)
+        else:
+            deploy_hash = None
+
+        service_name = f"k8s-{namespace}"
+        if host and deploy_hash and not force and not dry_run:
+            if not state.needs_update(host, deploy_hash, service_name):
+                logger.info(
+                    f"Deployment is up-to-date for {host}/{namespace}. "
+                    f"Use --force to redeploy."
+                )
+                print(
+                    f"No changes detected for {namespace}. "
+                    f"Use --force to redeploy."
+                )
+                return
+
+        # Generate dynamic inventory if host is provided
+        target_inventory = inventory_file
+        if host:
+            inventory_content = {
+                "all": {
+                    "hosts": {
+                        "target_host": {
+                            "ansible_host": host,
+                            "ansible_connection": "ssh",
+                            "ansible_ssh_common_args": "-o StrictHostKeyChecking=no",
+                        }
+                    },
+                    "vars": {"ansible_python_interpreter": "/usr/bin/python3"},
+                }
+            }
+            if user:
+                inventory_content["all"]["hosts"]["target_host"]["ansible_user"] = user
+
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            generated_inventory_path = os.path.join(
+                current_dir, "vm_setup", "generated_inventory.yml"
+            )
+            with open(generated_inventory_path, "w") as f:
+                yaml.dump(inventory_content, f)
+            target_inventory = generated_inventory_path
+        else:
+            target_inventory = os.path.abspath(inventory_file)
+
+        logger.info(f"Starting Kubernetes deployment ({deploy_method}) to {namespace}...")
+
+        extravars = {
+            "ansible_python_interpreter": "/usr/bin/python3",
+            "deploy_method": deploy_method,
+            "k8s_namespace": namespace,
+            "rollout_timeout": f"{timeout}s",
+            "dry_run": dry_run,
+        }
+
+        if kubeconfig:
+            extravars["kubeconfig_path"] = os.path.abspath(kubeconfig)
+
+        if deploy_method == "manifest":
+            if not manifest:
+                raise ValueError("--manifest is required for manifest deployment")
+            if not os.path.exists(manifest):
+                raise FileNotFoundError(f"Manifest not found: {manifest}")
+            extravars["k8s_manifest"] = os.path.abspath(manifest)
+
+        elif deploy_method == "helm":
+            if not helm_chart:
+                raise ValueError("--helm-chart is required for Helm deployment")
+            if not helm_release:
+                raise ValueError("--helm-release is required for Helm deployment")
+            extravars["helm_chart"] = helm_chart
+            extravars["helm_release"] = helm_release
+            if helm_values:
+                if not os.path.exists(helm_values):
+                    raise FileNotFoundError(f"Helm values file not found: {helm_values}")
+                extravars["helm_values"] = os.path.abspath(helm_values)
+        else:
+            raise ValueError(f"Unknown deploy method: {deploy_method}. Use 'manifest' or 'helm'.")
+
+        self._run_ansible_playbook(extravars, "k8s_deploy.yml")
+
+        # Record deployment state
+        if host and deploy_hash and not dry_run:
+            from vm_tool.history import DeploymentHistory
+
+            state.record_deployment(
+                host=host,
+                compose_file=manifest or helm_chart or "",
+                compose_hash=deploy_hash,
+                service_name=service_name,
+            )
+            history = DeploymentHistory()
+            history.record_deployment(
+                host=host,
+                compose_file=manifest or helm_chart or "",
+                compose_hash=deploy_hash,
+                status="success",
+                service_name=service_name,
+            )
+            logger.info(f"Kubernetes deployment to {namespace} completed.")
+
     def run_docker_deploy(
         self,
         compose_file="docker-compose.yml",
@@ -522,10 +638,6 @@ class SetupRunner:
         logger.info(
             f"Starting Docker deployment using {compose_file} on {target_inventory}..."
         )
-
-        # Debug: Log the project_dir value
-        logger.info(f"🔍 DEBUG: project_dir parameter = {project_dir}")
-        print(f"🔍 DEBUG: Deploying to project directory: {project_dir}")
 
         extravars = {
             "ansible_python_interpreter": "/usr/bin/python3",

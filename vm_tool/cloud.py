@@ -1,7 +1,7 @@
 """Multi-cloud support framework (AWS, GCP, Azure)."""
 
 import logging
-from typing import Optional, Dict, Any
+from typing import Dict, Any
 from abc import ABC, abstractmethod
 
 logger = logging.getLogger(__name__)
@@ -13,97 +13,111 @@ class CloudProvider(ABC):
     @abstractmethod
     def deploy_vm(self, config: Dict[str, Any]) -> str:
         """Deploy VM and return instance ID."""
-        pass
 
     @abstractmethod
     def get_vm_status(self, instance_id: str) -> str:
         """Get VM status."""
-        pass
 
     @abstractmethod
     def terminate_vm(self, instance_id: str) -> bool:
         """Terminate VM."""
-        pass
 
 
 class AWSProvider(CloudProvider):
-    """AWS cloud provider (requires boto3)."""
+    """AWS cloud provider (requires boto3).
+
+    Install with: pip install vm-tool[aws]
+    """
 
     def __init__(self, region: str = "us-east-1"):
+        try:
+            import boto3
+
+            self.client = boto3.client("ec2", region_name=region)
+        except ImportError:
+            raise ImportError(
+                "boto3 is required for AWS support. "
+                "Install with: pip install vm-tool[aws]"
+            )
         self.region = region
         logger.info(f"AWS provider initialized (region: {region})")
-        # TODO: Initialize boto3 client
 
     def deploy_vm(self, config: Dict[str, Any]) -> str:
         """Deploy EC2 instance."""
-        logger.info("Deploying AWS EC2 instance...")
-        # TODO: Implement with boto3
-        return "i-placeholder"
+        raise NotImplementedError(
+            "AWS EC2 deployment is not yet implemented. "
+            "Use vm_tool deploy-docker with an SSH target instead."
+        )
 
     def get_vm_status(self, instance_id: str) -> str:
         """Get EC2 instance status."""
-        # TODO: Implement with boto3
-        return "running"
+        raise NotImplementedError("AWS EC2 status check is not yet implemented.")
 
     def terminate_vm(self, instance_id: str) -> bool:
         """Terminate EC2 instance."""
-        logger.info(f"Terminating EC2 instance: {instance_id}")
-        # TODO: Implement with boto3
-        return True
+        raise NotImplementedError("AWS EC2 termination is not yet implemented.")
 
 
 class GCPProvider(CloudProvider):
-    """GCP cloud provider (requires google-cloud-compute)."""
+    """GCP cloud provider (requires google-cloud-compute).
+
+    Install with: pip install vm-tool[gcp]
+    """
 
     def __init__(self, project_id: str, zone: str = "us-central1-a"):
+        try:
+            import google.cloud.compute_v1  # noqa: F401
+        except ImportError:
+            raise ImportError(
+                "google-cloud-compute is required for GCP support. "
+                "Install with: pip install vm-tool[gcp]"
+            )
         self.project_id = project_id
         self.zone = zone
         logger.info(f"GCP provider initialized (project: {project_id}, zone: {zone})")
-        # TODO: Initialize GCP client
 
     def deploy_vm(self, config: Dict[str, Any]) -> str:
         """Deploy GCE instance."""
-        logger.info("Deploying GCP Compute Engine instance...")
-        # TODO: Implement with google-cloud-compute
-        return "gcp-instance-placeholder"
+        raise NotImplementedError("GCP Compute Engine deployment is not yet implemented.")
 
     def get_vm_status(self, instance_id: str) -> str:
         """Get GCE instance status."""
-        # TODO: Implement
-        return "RUNNING"
+        raise NotImplementedError("GCP Compute Engine status check is not yet implemented.")
 
     def terminate_vm(self, instance_id: str) -> bool:
         """Terminate GCE instance."""
-        logger.info(f"Terminating GCE instance: {instance_id}")
-        # TODO: Implement
-        return True
+        raise NotImplementedError("GCP Compute Engine termination is not yet implemented.")
 
 
 class AzureProvider(CloudProvider):
-    """Azure cloud provider (requires azure-mgmt-compute)."""
+    """Azure cloud provider (requires azure-mgmt-compute).
+
+    Install with: pip install vm-tool[azure]
+    """
 
     def __init__(self, subscription_id: str, resource_group: str):
+        try:
+            import azure.mgmt.compute  # noqa: F401
+        except ImportError:
+            raise ImportError(
+                "azure-mgmt-compute is required for Azure support. "
+                "Install with: pip install vm-tool[azure]"
+            )
         self.subscription_id = subscription_id
         self.resource_group = resource_group
         logger.info(f"Azure provider initialized (subscription: {subscription_id})")
-        # TODO: Initialize Azure client
 
     def deploy_vm(self, config: Dict[str, Any]) -> str:
         """Deploy Azure VM."""
-        logger.info("Deploying Azure VM...")
-        # TODO: Implement with azure-mgmt-compute
-        return "azure-vm-placeholder"
+        raise NotImplementedError("Azure VM deployment is not yet implemented.")
 
     def get_vm_status(self, instance_id: str) -> str:
         """Get Azure VM status."""
-        # TODO: Implement
-        return "running"
+        raise NotImplementedError("Azure VM status check is not yet implemented.")
 
     def terminate_vm(self, instance_id: str) -> bool:
         """Terminate Azure VM."""
-        logger.info(f"Terminating Azure VM: {instance_id}")
-        # TODO: Implement
-        return True
+        raise NotImplementedError("Azure VM termination is not yet implemented.")
 
 
 class MultiCloudManager:

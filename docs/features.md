@@ -93,12 +93,10 @@ vm_tool backup restore --id BACKUP_ID --host IP
 
 ---
 
-## Coming Soon
+## Roadmap
 
-- Atomic Deployments
-- Blue-Green Deployments
-- Secrets Management
-- Auto-Scaling
+- Kubernetes deployment support (`deploy-k8s`)
+- Blue-green and canary strategies (CLI integration)
+- Multi-cloud VM provisioning (AWS/GCP/Azure)
+- Compliance scanning
 - GitOps Integration
-
-See [implementation_plan.md](https://github.com/thesunnysinha/vm_tool) for full roadmap.

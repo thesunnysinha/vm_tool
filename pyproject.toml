@@ -1,17 +1,16 @@
 [build-system]
-requires = ["setuptools>=45", "wheel", "setuptools_scm>=6.2"]
-build-backend = "setuptools.build_meta"
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
 
-[project]
+[tool.poetry]
 name = "vm_tool"
 version = "1.0.51"
 description = "A Comprehensive Tool for Setting Up Virtual Machines."
 readme = "README.md"
 authors = [
-    {name = "Sunny Sinha", email = "thesunnysinha@gmail.com"},
+    "Sunny Sinha <thesunnysinha@gmail.com>",
 ]
-license = {text = "MIT"}
-requires-python = ">=3.9"
+license = "MIT"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
@@ -25,47 +24,60 @@ classifiers = [
     "Topic :: Software Development :: Build Tools",
     "Topic :: System :: Systems Administration",
 ]
-dependencies = [
-    "ansible",
-    "ansible-runner",
-    "paramiko",
-    "pydantic",
-    "pyyaml",
-]
+packages = [{include = "vm_tool"}]
 
-[project.optional-dependencies]
-dev = [
-    "pytest>=6.0.0",
-    "check-manifest",
-    "twine",
-    "wheel",
-    "bump-my-version",
-    "bandit",
-    "pre-commit",
-    "mkdocs-material",
-    "mkdocstrings[python]",
-    "black",
-    "isort",
-]
+[tool.poetry.dependencies]
+python = ">=3.9,<4.0"
+ansible = "*"
+ansible-runner = "*"
+paramiko = "*"
+pydantic = "*"
+pyyaml = "*"
 
-[project.scripts]
+# Optional cloud/k8s providers
+boto3 = {version = "*", optional = true}
+google-cloud-compute = {version = "*", optional = true}
+azure-mgmt-compute = {version = "*", optional = true}
+azure-identity = {version = "*", optional = true}
+requests = {version = "*", optional = true}
+
+[tool.poetry.extras]
+aws = ["boto3"]
+gcp = ["google-cloud-compute"]
+azure = ["azure-mgmt-compute", "azure-identity"]
+alerting = ["requests"]
+all = ["boto3", "google-cloud-compute", "azure-mgmt-compute", "azure-identity", "requests"]
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=6.0.0"
+check-manifest = "*"
+twine = "*"
+wheel = "*"
+bump-my-version = "*"
+bandit = "*"
+pre-commit = "*"
+mkdocs-material = "*"
+mkdocstrings = {extras = ["python"], version = "*"}
+black = "*"
+isort = "*"
+flake8 = "*"
+
+[tool.poetry.scripts]
 vm_tool = "vm_tool.cli:main"
 
-[project.urls]
+[tool.poetry.urls]
 Documentation = "https://vm-tool.sunnysinha.online/"
 Source = "https://github.com/thesunnysinha/vm_tool"
 Tracker = "https://github.com/thesunnysinha/vm_tool/issues"
 
 [tool.semantic_release]
 version_variable = [
-    "setup.py:version",
     "pyproject.toml:version"
 ]
 branch = "main"
 upload_to_pypi = true
 upload_to_release = true
-build_command = "python setup.py sdist bdist_wheel"
-
+build_command = "poetry build"
 
 [tool.black]
 line-length = 88
@@ -75,17 +87,11 @@ include = '\.pyi?$'
 [tool.isort]
 profile = "black"
 multi_line_output = 3
+
 [tool.bumpversion]
 current_version = "1.0.51"
 commit = true
 tag = true
-
-[[tool.bumpversion.files]]
-filename = "setup.py"
-search = 'version="{current_version}"'
-replace = 'version="{new_version}"'
-
-
 
 [[tool.bumpversion.files]]
 filename = "pyproject.toml"

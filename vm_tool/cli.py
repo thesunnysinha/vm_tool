@@ -281,6 +281,61 @@ def main():
         help="Timeout in seconds for health checks (default: 300)",
     )
 
+    # Kubernetes Deploy command
+    k8s_deploy_parser = subparsers.add_parser(
+        "deploy-k8s", help="Deploy to Kubernetes using kubectl or Helm"
+    )
+    k8s_deploy_parser.add_argument(
+        "--method",
+        type=str,
+        default="manifest",
+        choices=["manifest", "helm"],
+        help="Deployment method: 'manifest' (kubectl apply) or 'helm' (helm upgrade --install)",
+    )
+    k8s_deploy_parser.add_argument(
+        "--namespace", type=str, default="default", help="Kubernetes namespace"
+    )
+    k8s_deploy_parser.add_argument(
+        "--manifest", type=str, help="Path to Kubernetes manifest file or directory"
+    )
+    k8s_deploy_parser.add_argument(
+        "--helm-chart", type=str, help="Helm chart name or path"
+    )
+    k8s_deploy_parser.add_argument(
+        "--helm-release", type=str, help="Helm release name"
+    )
+    k8s_deploy_parser.add_argument(
+        "--helm-values", type=str, help="Path to Helm values file"
+    )
+    k8s_deploy_parser.add_argument(
+        "--kubeconfig", type=str, help="Path to kubeconfig file"
+    )
+    k8s_deploy_parser.add_argument(
+        "--host", type=str, help="Target host (where kubectl/helm runs)"
+    )
+    k8s_deploy_parser.add_argument(
+        "--user", type=str, help="SSH user for target host"
+    )
+    k8s_deploy_parser.add_argument(
+        "--inventory", type=str, default="inventory.yml", help="Inventory file to use"
+    )
+    k8s_deploy_parser.add_argument(
+        "--timeout",
+        type=int,
+        default=300,
+        help="Rollout timeout in seconds (default: 300)",
+    )
+    k8s_deploy_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Preview deployment without applying (server-side dry-run)",
+    )
+    k8s_deploy_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Force redeployment even if no changes detected",
+    )
+
     # Completion command
     completion_parser = subparsers.add_parser(
         "completion", help="Generate shell completion scripts"
@@ -727,6 +782,55 @@ def main():
 
         except Exception as e:
             print(f"Error: {e}")
+            sys.exit(1)
+
+    elif args.command == "deploy-k8s":
+        try:
+            from vm_tool.runner import SetupRunner, SetupRunnerConfig
+
+            # Dry-run mode
+            if args.dry_run:
+                print("\n🔍 DRY-RUN MODE - No changes will be applied\n")
+                print(f"📋 Kubernetes Deployment Plan:")
+                print(f"   Method: {args.method}")
+                print(f"   Namespace: {args.namespace}")
+                if args.method == "manifest":
+                    print(f"   Manifest: {args.manifest}")
+                else:
+                    print(f"   Helm Chart: {args.helm_chart}")
+                    print(f"   Helm Release: {args.helm_release}")
+                    if args.helm_values:
+                        print(f"   Values File: {args.helm_values}")
+                if args.kubeconfig:
+                    print(f"   Kubeconfig: {args.kubeconfig}")
+                if args.host:
+                    print(f"   Target Host: {args.host}")
+                print(f"   Timeout: {args.timeout}s")
+                print()
+
+            config = SetupRunnerConfig(github_project_url="dummy")
+            runner = SetupRunner(config)
+            runner.run_k8s_deploy(
+                deploy_method=args.method,
+                namespace=args.namespace,
+                manifest=args.manifest,
+                helm_chart=args.helm_chart,
+                helm_release=args.helm_release,
+                helm_values=args.helm_values,
+                kubeconfig=args.kubeconfig,
+                inventory_file=args.inventory,
+                host=args.host,
+                user=args.user,
+                timeout=args.timeout,
+                dry_run=args.dry_run,
+                force=args.force,
+            )
+
+            if not args.dry_run:
+                print(f"\n✅ Kubernetes deployment to {args.namespace} completed!")
+
+        except Exception as e:
+            print(f"❌ Kubernetes deployment failed: {e}")
             sys.exit(1)
 
     elif args.command == "hydrate-env":

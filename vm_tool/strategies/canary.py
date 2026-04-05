@@ -124,9 +124,10 @@ class CanaryDeployment:
 
     def _deploy_to_canary(self, compose_file: str):
         """Deploy to canary environment."""
-        logger.info(f"   Deploying {compose_file} to {self.canary_host}")
-        # TODO: Integrate with deploy-docker
-        pass
+        raise NotImplementedError(
+            "Canary deployment is not yet wired to the deploy engine. "
+            "Use 'vm_tool deploy-docker' directly for now."
+        )
 
     def _health_check(self, host: str) -> bool:
         """Check if host is healthy."""
@@ -143,11 +144,10 @@ class CanaryDeployment:
         Args:
             percentage: Percentage of traffic to send to canary (0-100)
         """
-        # This would update load balancer configuration
-        # Implementation depends on LB type (nginx, AWS ALB, etc.)
-        logger.info(f"   Traffic shift: {percentage}% to canary")
-        # TODO: Implement actual traffic shifting
-        pass
+        raise NotImplementedError(
+            "Traffic shifting is not yet implemented. "
+            "Configure your load balancer manually for canary deployments."
+        )
 
     def _get_canary_metrics(self) -> Dict[str, float]:
         """Get metrics from canary environment."""
@@ -263,9 +263,10 @@ class ProgressiveRollout:
 
     def _deploy_to_host(self, host: str, compose_file: str):
         """Deploy to a single host."""
-        logger.info(f"      Deploying to {host}...")
-        # TODO: Integrate with deploy-docker
-        pass
+        raise NotImplementedError(
+            "Rolling deployment is not yet wired to the deploy engine. "
+            "Use 'vm_tool deploy-docker' directly for now."
+        )
 
     def _health_check(self, host: str) -> bool:
         """Check if host is healthy."""

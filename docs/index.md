@@ -1,113 +1,112 @@
-# Welcome to VM Tool
+# VM Tool
 
-A **production-grade deployment platform** with enterprise features for Docker-based applications.
+A deployment automation platform for Docker and Kubernetes applications, powered by Ansible.
+
+<div class="grid cards" markdown>
+
+-   :material-rocket-launch:{ .lg .middle } **Deploy in one command**
+
+    ---
+
+    Push Docker Compose apps or K8s manifests to remote servers with a single CLI command.
+
+    ```bash
+    vm_tool deploy-docker --profile production
+    ```
+
+-   :material-shield-check:{ .lg .middle } **Safe by default**
+
+    ---
+
+    Idempotent deployments, dry-run mode, production confirmation prompts, and one-command rollback.
+
+-   :material-kubernetes:{ .lg .middle } **Docker & Kubernetes**
+
+    ---
+
+    Deploy Docker Compose apps or Kubernetes manifests/Helm charts — same CLI, same workflow.
+
+-   :material-history:{ .lg .middle } **Track everything**
+
+    ---
+
+    Deployment history, drift detection, backup/restore, and health checks built in.
+
+</div>
 
 ---
 
-## 🚀 Features
-
-### Phase 1: Foundation
-
-- ✅ **Configuration Management** - Profiles and defaults
-- ✅ **Idempotent Deployments** - Safe to run multiple times
-- ✅ **Health Checks** - Port, HTTP, and custom checks
-- ✅ **Multi-Environment** - Dev/staging/prod with safety
-- ✅ **Verbose Logging** - Debug and verbose modes
-
-### Phase 2: Safety & Reliability
-
-- ✅ **Deployment History & Rollback** - One-command rollback
-- ✅ **Dry-Run** - Preview before deploy
-- ✅ **Drift Detection** - Catch manual changes
-- ✅ **Backup & Restore** - Disaster recovery
-
-### Core Technology
-
-- 🔧 **Ansible-Based** - Production-grade automation
-- 🔧 **Idempotent** - Safe to run multiple times
-- 🔧 **Scalable** - Multi-host support
-
----
-
-## ⚡ Quick Start
+## Install
 
 ```bash
-# Install
 pip install vm-tool
+```
 
-# Create profile
-vm_tool config create-profile production \
+## Deploy in 60 Seconds
+
+```bash
+# 1. Create a profile
+vm_tool config create-profile prod \
   --environment production \
   --host 10.0.2.10 \
   --user ubuntu
 
-# Deploy with health checks
-vm_tool deploy-docker \
-  --profile production \
-  --health-port 8000
+# 2. Deploy
+vm_tool deploy-docker --profile prod --health-port 8000
 
-# View history
-vm_tool history --host 10.0.2.10
-
-# Rollback if needed
+# 3. If something breaks
 vm_tool rollback --host 10.0.2.10
 ```
 
 ---
 
-## 📚 Documentation
+## What vm_tool Does
 
-- [Usage Guide](usage.md) - Complete usage documentation
-- [Features](features.md) - Detailed feature documentation
-- [Pipeline Generator](generator.md) - Generate GitHub Actions workflows
-- [EC2 Deployment](ec2-github-actions-guide.md) - Deploy to EC2 with GitHub Actions
-- [SSH Setup](ssh-key-setup.md) - SSH key configuration
-
----
-
-## 🎯 Use Cases
-
-### Automated Deployments
-
-```bash
-vm_tool deploy-docker --profile production --health-port 8000
+```mermaid
+graph LR
+    A["vm_tool CLI"] --> B["Ansible"]
+    B --> C["SSH"]
+    C --> D["Docker Compose"]
+    C --> E["kubectl / Helm"]
+    style A fill:#4051b5,color:#fff
+    style B fill:#e8710a,color:#fff
 ```
 
-### CI/CD Integration
+**You run simple commands. Ansible handles the hard parts.**
 
-```bash
-vm_tool generate-pipeline  # Creates GitHub Actions workflow
-```
-
-### Disaster Recovery
-
-```bash
-vm_tool backup create --host IP --paths /app
-vm_tool rollback --host IP
-```
+- Idempotent deployments (only redeploys on changes)
+- Multi-host support
+- Health checks after every deployment
+- Full deployment history with rollback
 
 ---
 
-## 🏗️ Architecture
+## Core Features
 
-**vm_tool = User-Friendly CLI + Production-Grade Ansible**
-
-- Simple commands for users
-- Ansible power under the hood
-- Production-ready reliability
-- Scalable architecture
-
----
-
-## 📊 Status
-
-- **Features**: 9/50 implemented (18%)
-- **Tests**: 56/56 passing ✅
-- **Production Ready**: Yes ✅
+| Feature | Command |
+|---------|---------|
+| Docker deployment | `vm_tool deploy-docker --profile prod` |
+| Kubernetes deployment | `vm_tool deploy-k8s --method manifest --manifest app.yml` |
+| Deployment history | `vm_tool history --host 10.0.2.10` |
+| Rollback | `vm_tool rollback --host 10.0.2.10` |
+| Drift detection | `vm_tool drift-check --host 10.0.2.10` |
+| Backup & restore | `vm_tool backup create --host 10.0.2.10 --paths /app` |
+| CI/CD generation | `vm_tool generate-pipeline` |
+| Secrets sync | `vm_tool secrets sync --env-file .env --repo owner/repo` |
+| Dry-run | `vm_tool deploy-docker --profile prod --dry-run` |
 
 ---
 
-## 🔗 Links
+## Roadmap
+
+- Blue-green and canary deployment strategies (CLI integration)
+- Multi-cloud VM provisioning (AWS/GCP/Azure)
+- Compliance scanning
+- GitOps integration (ArgoCD/Flux)
+
+---
+
+## Links
 
 - [GitHub Repository](https://github.com/thesunnysinha/vm_tool)
 - [PyPI Package](https://pypi.org/project/vm-tool/)

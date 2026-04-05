@@ -1,6 +1,7 @@
 """Policy as Code framework for deployment policies."""
 
 import logging
+from abc import ABC, abstractmethod
 from typing import Dict, Any, Callable, List, Optional
 from dataclasses import dataclass
 
@@ -16,16 +17,16 @@ class PolicyViolation:
     severity: str  # "error", "warning", "info"
 
 
-class Policy:
+class Policy(ABC):
     """Base policy class."""
 
     def __init__(self, name: str, description: str):
         self.name = name
         self.description = description
 
+    @abstractmethod
     def evaluate(self, context: Dict[str, Any]) -> List[PolicyViolation]:
         """Evaluate policy against context."""
-        raise NotImplementedError
 
 
 class DeploymentPolicy(Policy):

@@ -95,20 +95,19 @@ class ABTestDeployment:
 
     def _deploy_variant(self, variant: Variant, compose_file: str):
         """Deploy a single variant."""
-        # TODO: Integrate with deploy-docker
-        logger.info(f"      Deploying {compose_file} to {variant.host}")
-        pass
+        raise NotImplementedError(
+            "A/B testing deployment is not yet wired to the deploy engine. "
+            "Use 'vm_tool deploy-docker' directly for now."
+        )
 
     def _configure_traffic_split(self):
         """Configure load balancer for traffic splitting."""
         # This would configure the load balancer to split traffic
         # based on variant percentages
-        for variant in self.variants:
-            logger.info(
-                f"   {variant.name}: {variant.traffic_percentage}% → {variant.host}"
-            )
-        # TODO: Implement actual LB configuration
-        pass
+        raise NotImplementedError(
+            "Load balancer traffic splitting is not yet implemented. "
+            "Configure your load balancer manually for A/B testing."
+        )
 
     def get_variant_metrics(self, variant_name: str) -> Dict[str, Any]:
         """Get metrics for a specific variant.
@@ -212,12 +211,10 @@ class TrafficSplitter:
     def _apply_weights(self):
         """Apply traffic weights to load balancer."""
         logger.info("🔄 Applying traffic weights:")
-        for backend, weight in self.traffic_weights.items():
-            host = self.backends.get(backend, "unknown")
-            logger.info(f"   {backend}: {weight}% → {host}")
-
-        # TODO: Implement actual LB weight configuration
-        pass
+        raise NotImplementedError(
+            "Load balancer weight configuration is not yet implemented. "
+            "Configure your load balancer manually for A/B testing."
+        )
 
     def gradual_shift(
         self,

@@ -1,6 +1,7 @@
 """Alerting system with multiple notification channels."""
 
 import logging
+from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Optional
 from enum import Enum
 from dataclasses import dataclass
@@ -27,12 +28,12 @@ class Alert:
     metadata: Optional[Dict[str, Any]] = None
 
 
-class AlertChannel:
+class AlertChannel(ABC):
     """Base class for alert channels."""
 
+    @abstractmethod
     def send(self, alert: Alert) -> bool:
         """Send alert through this channel."""
-        raise NotImplementedError
 
 
 class SlackAlertChannel(AlertChannel):

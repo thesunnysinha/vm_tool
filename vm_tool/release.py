@@ -1,7 +1,10 @@
+import logging
 import subprocess
 import yaml
 import os
 import shutil
+
+logger = logging.getLogger(__name__)
 
 
 class ReleaseManager:
@@ -10,7 +13,7 @@ class ReleaseManager:
 
     def _log(self, message):
         if self.verbose:
-            print(f"DEBUG: {message}")
+            logger.debug(message)
 
     def merge_compose_files(self, files, output_file):
         """

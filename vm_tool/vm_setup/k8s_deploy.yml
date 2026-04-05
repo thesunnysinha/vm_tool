@@ -1,0 +1,135 @@
+---
+- name: Deploy to Kubernetes
+  hosts: all
+  become: false
+  vars:
+    deploy_method: "{{ deploy_method | default('manifest') }}"
+    k8s_namespace: "{{ k8s_namespace | default('default') }}"
+    k8s_manifest: "{{ k8s_manifest | default('') }}"
+    helm_chart: "{{ helm_chart | default('') }}"
+    helm_release: "{{ helm_release | default('') }}"
+    helm_values: "{{ helm_values | default('') }}"
+    kubeconfig_path: "{{ kubeconfig_path | default('~/.kube/config') }}"
+    rollout_timeout: "{{ rollout_timeout | default('300s') }}"
+    dry_run: "{{ dry_run | default(false) }}"
+
+  tasks:
+    - name: Verify kubectl is available
+      command: kubectl version --client --short
+      register: kubectl_version
+      changed_when: false
+
+    - name: Verify cluster connectivity
+      command: kubectl --kubeconfig {{ kubeconfig_path }} cluster-info
+      register: cluster_info
+      changed_when: false
+
+    - name: Ensure namespace exists
+      command: >
+        kubectl --kubeconfig {{ kubeconfig_path }}
+        create namespace {{ k8s_namespace }}
+        --dry-run=client -o yaml
+      register: ns_yaml
+      changed_when: false
+
+    - name: Apply namespace
+      command: >
+        kubectl --kubeconfig {{ kubeconfig_path }}
+        apply -f -
+      args:
+        stdin: "{{ ns_yaml.stdout }}"
+      when: k8s_namespace != 'default' and not dry_run
+      changed_when: true
+
+    # --- Manifest deployment ---
+    - name: Copy manifest to target
+      copy:
+        src: "{{ k8s_manifest }}"
+        dest: "/tmp/k8s-manifest-{{ ansible_date_time.epoch }}.yml"
+      when: deploy_method == 'manifest' and k8s_manifest != ''
+      register: copied_manifest
+
+    - name: Apply Kubernetes manifest (dry-run)
+      command: >
+        kubectl --kubeconfig {{ kubeconfig_path }}
+        apply -f {{ copied_manifest.dest }}
+        --namespace {{ k8s_namespace }}
+        --dry-run=server
+      when: deploy_method == 'manifest' and k8s_manifest != '' and dry_run
+      register: manifest_dry_run
+
+    - name: Show dry-run result
+      debug:
+        var: manifest_dry_run.stdout_lines
+      when: deploy_method == 'manifest' and dry_run and manifest_dry_run is defined
+
+    - name: Apply Kubernetes manifest
+      command: >
+        kubectl --kubeconfig {{ kubeconfig_path }}
+        apply -f {{ copied_manifest.dest }}
+        --namespace {{ k8s_namespace }}
+      when: deploy_method == 'manifest' and k8s_manifest != '' and not dry_run
+      register: manifest_apply
+
+    - name: Wait for rollout to complete (manifest)
+      command: >
+        kubectl --kubeconfig {{ kubeconfig_path }}
+        rollout status deployment --all
+        --namespace {{ k8s_namespace }}
+        --timeout={{ rollout_timeout }}
+      when: deploy_method == 'manifest' and not dry_run
+      register: rollout_status
+      changed_when: false
+
+    # --- Helm deployment ---
+    - name: Verify helm is available
+      command: helm version --short
+      when: deploy_method == 'helm'
+      register: helm_version
+      changed_when: false
+
+    - name: Helm upgrade/install (dry-run)
+      command: >
+        helm upgrade --install {{ helm_release }} {{ helm_chart }}
+        --namespace {{ k8s_namespace }}
+        --kubeconfig {{ kubeconfig_path }}
+        {% if helm_values %} --values {{ helm_values }} {% endif %}
+        --dry-run
+      when: deploy_method == 'helm' and dry_run
+      register: helm_dry_run
+
+    - name: Show helm dry-run result
+      debug:
+        var: helm_dry_run.stdout_lines
+      when: deploy_method == 'helm' and dry_run and helm_dry_run is defined
+
+    - name: Helm upgrade/install
+      command: >
+        helm upgrade --install {{ helm_release }} {{ helm_chart }}
+        --namespace {{ k8s_namespace }}
+        --kubeconfig {{ kubeconfig_path }}
+        {% if helm_values %} --values {{ helm_values }} {% endif %}
+        --wait --timeout {{ rollout_timeout }}
+      when: deploy_method == 'helm' and not dry_run
+      register: helm_result
+
+    # --- Post-deploy verification ---
+    - name: Get pod status
+      command: >
+        kubectl --kubeconfig {{ kubeconfig_path }}
+        get pods --namespace {{ k8s_namespace }}
+        -o wide
+      register: pod_status
+      changed_when: false
+      when: not dry_run
+
+    - name: Show pod status
+      debug:
+        var: pod_status.stdout_lines
+      when: not dry_run and pod_status is defined
+
+    - name: Cleanup temp manifest
+      file:
+        path: "{{ copied_manifest.dest }}"
+        state: absent
+      when: copied_manifest is defined and copied_manifest.dest is defined

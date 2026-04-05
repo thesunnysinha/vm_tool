@@ -129,11 +129,10 @@ class BlueGreenDeployment:
 
     def _deploy_to_host(self, host: str, compose_file: str):
         """Deploy application to specified host."""
-        # This would use the existing deploy-docker functionality
-        # For now, placeholder for integration
-        logger.info(f"   Deploying {compose_file} to {host}")
-        # TODO: Integrate with vm_tool deploy-docker
-        pass
+        raise NotImplementedError(
+            "Blue-green deployment is not yet wired to the deploy engine. "
+            "Use 'vm_tool deploy-docker' directly for now."
+        )
 
     def _wait_for_health(self, host: str) -> bool:
         """Wait for host to become healthy.
@@ -166,18 +165,10 @@ class BlueGreenDeployment:
         Args:
             target_env: Target environment ('blue' or 'green')
         """
-        if self.load_balancer_host:
-            # External load balancer (e.g., AWS ALB, nginx)
-            logger.info(f"   Updating load balancer: {self.load_balancer_host}")
-            # TODO: Implement load balancer update
-            # This would depend on the LB type (AWS, nginx, HAProxy, etc.)
-        else:
-            # Internal traffic switching (e.g., update DNS, update nginx config)
-            logger.info(f"   Switching internal traffic to {target_env}")
-            # TODO: Implement internal traffic switching
-
-        # Placeholder - actual implementation would update LB/DNS
-        logger.info(f"   Traffic switch to {target_env} complete")
+        raise NotImplementedError(
+            "Traffic switching is not yet implemented. "
+            "Configure your load balancer manually for blue-green deployments."
+        )
 
 
 class BlueGreenConfig:

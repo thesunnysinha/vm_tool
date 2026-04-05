@@ -110,11 +110,14 @@ class ErrorRecovery:
         history = DeploymentHistory()
         previous = history.get_previous_deployment()
 
-        if previous:
-            logger.info(f"   Rolling back to deployment: {previous['id']}")
-            # TODO: Implement actual rollback
-        else:
-            logger.warning("   No previous deployment found for rollback")
+        if not previous:
+            raise RuntimeError("No previous deployment found for rollback")
+
+        logger.info(f"   Rolling back to deployment: {previous['id']}")
+        raise NotImplementedError(
+            "Automatic rollback is not yet implemented. "
+            "Use 'vm_tool rollback --host HOST' to rollback manually."
+        )
 
 
 class CircuitBreaker:

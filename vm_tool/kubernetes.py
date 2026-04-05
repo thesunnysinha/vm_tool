@@ -7,46 +7,45 @@ logger = logging.getLogger(__name__)
 
 
 class KubernetesDeployment:
-    """Kubernetes deployment manager (requires kubectl/kubernetes python client)."""
+    """Kubernetes deployment manager (requires kubectl/kubernetes python client).
+
+    Install with: pip install vm-tool[k8s]
+    """
 
     def __init__(self, kubeconfig: Optional[str] = None, namespace: str = "default"):
         self.kubeconfig = kubeconfig
         self.namespace = namespace
         logger.info(f"Kubernetes deployment initialized (namespace: {namespace})")
-        # TODO: Initialize kubernetes client
 
     def deploy_helm_chart(
         self, chart_name: str, release_name: str, values: Dict[str, Any]
     ) -> bool:
         """Deploy Helm chart."""
-        logger.info(f"Deploying Helm chart: {chart_name} as {release_name}")
-        # TODO: Implement with helm or kubernetes client
-        return True
+        raise NotImplementedError(
+            "Helm chart deployment is not yet implemented. "
+            "Use vm_tool deploy-docker for Docker-based deployments."
+        )
 
     def deploy_manifest(self, manifest_file: str) -> bool:
         """Deploy Kubernetes manifest."""
-        logger.info(f"Deploying manifest: {manifest_file}")
-        # TODO: Implement with kubectl or kubernetes client
-        return True
+        raise NotImplementedError(
+            "Kubernetes manifest deployment is not yet implemented. "
+            "Use vm_tool deploy-docker for Docker-based deployments."
+        )
 
     def get_pod_status(self, pod_name: str) -> str:
         """Get pod status."""
-        # TODO: Implement
-        return "Running"
+        raise NotImplementedError("Kubernetes pod status check is not yet implemented.")
 
     def scale_deployment(self, deployment_name: str, replicas: int) -> bool:
         """Scale deployment."""
-        logger.info(f"Scaling {deployment_name} to {replicas} replicas")
-        # TODO: Implement
-        return True
+        raise NotImplementedError("Kubernetes deployment scaling is not yet implemented.")
 
     def rollback_deployment(
         self, deployment_name: str, revision: Optional[int] = None
     ) -> bool:
         """Rollback deployment."""
-        logger.info(f"Rolling back deployment: {deployment_name}")
-        # TODO: Implement
-        return True
+        raise NotImplementedError("Kubernetes deployment rollback is not yet implemented.")
 
 
 class ServiceMeshIntegration:
@@ -58,15 +57,15 @@ class ServiceMeshIntegration:
 
     def configure_traffic_split(self, service: str, versions: Dict[str, int]) -> bool:
         """Configure traffic splitting between versions."""
-        logger.info(f"Configuring traffic split for {service}: {versions}")
-        # TODO: Implement Istio VirtualService or Linkerd TrafficSplit
-        return True
+        raise NotImplementedError(
+            f"Traffic splitting via {self.mesh_type} is not yet implemented."
+        )
 
     def enable_mtls(self, namespace: str) -> bool:
         """Enable mutual TLS."""
-        logger.info(f"Enabling mTLS for namespace: {namespace}")
-        # TODO: Implement
-        return True
+        raise NotImplementedError(
+            f"mTLS configuration via {self.mesh_type} is not yet implemented."
+        )
 
 
 class GitOpsIntegration:
@@ -78,12 +77,12 @@ class GitOpsIntegration:
 
     def create_application(self, name: str, repo_url: str, path: str) -> bool:
         """Create GitOps application."""
-        logger.info(f"Creating GitOps app: {name} from {repo_url}/{path}")
-        # TODO: Implement ArgoCD or Flux application creation
-        return True
+        raise NotImplementedError(
+            f"GitOps application creation via {self.gitops_tool} is not yet implemented."
+        )
 
     def sync_application(self, name: str) -> bool:
         """Sync GitOps application."""
-        logger.info(f"Syncing GitOps app: {name}")
-        # TODO: Implement
-        return True
+        raise NotImplementedError(
+            f"GitOps application sync via {self.gitops_tool} is not yet implemented."
+        )
