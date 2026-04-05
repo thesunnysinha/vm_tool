@@ -514,8 +514,27 @@ class SetupRunner:
                 manifest = self._substitute_images(manifest, image_substitutions)
                 temp_manifest_dir = os.path.dirname(manifest) if not os.path.isdir(manifest) else None
 
-            # Generate dynamic inventory if host is provided
-            target_inventory = inventory_file
+            logger.info(f"Starting Kubernetes deployment ({deploy_method}) to {namespace}...")
+
+            # Validate method-specific args
+            if deploy_method == "manifest":
+                if not manifest:
+                    raise ValueError("--manifest is required for manifest deployment")
+                if not os.path.exists(manifest):
+                    raise FileNotFoundError(f"Manifest not found: {manifest}")
+            elif deploy_method == "helm":
+                if not helm_chart:
+                    raise ValueError("--helm-chart is required for Helm deployment")
+                if not helm_release:
+                    raise ValueError("--helm-release is required for Helm deployment")
+                if helm_values and not os.path.exists(helm_values):
+                    raise FileNotFoundError(f"Helm values file not found: {helm_values}")
+            else:
+                raise ValueError(f"Unknown deploy method: {deploy_method}. Use 'manifest' or 'helm'.")
+
+            # Generate inventory
+            # When --host is given: run kubectl over SSH on that host
+            # When no --host: run kubectl locally (CI mode — kubeconfig points to remote cluster)
             if host:
                 inventory_content = {
                     "all": {
@@ -531,18 +550,25 @@ class SetupRunner:
                 }
                 if user:
                     inventory_content["all"]["hosts"]["target_host"]["ansible_user"] = user
-
-                current_dir = os.path.dirname(os.path.abspath(__file__))
-                generated_inventory_path = os.path.join(
-                    current_dir, "vm_setup", "generated_inventory.yml"
-                )
-                with open(generated_inventory_path, "w") as f:
-                    yaml.dump(inventory_content, f)
-                target_inventory = generated_inventory_path
             else:
-                target_inventory = os.path.abspath(inventory_file)
+                # Local execution: kubectl runs on this machine with the provided kubeconfig
+                inventory_content = {
+                    "all": {
+                        "hosts": {
+                            "localhost": {
+                                "ansible_connection": "local",
+                            }
+                        },
+                    }
+                }
 
-            logger.info(f"Starting Kubernetes deployment ({deploy_method}) to {namespace}...")
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            generated_inventory_path = os.path.join(
+                current_dir, "vm_setup", "generated_inventory.yml"
+            )
+            with open(generated_inventory_path, "w") as f:
+                yaml.dump(inventory_content, f)
+            target_inventory = generated_inventory_path
 
             extravars = {
                 "ansible_python_interpreter": "/usr/bin/python3",
@@ -555,7 +581,6 @@ class SetupRunner:
             if kubeconfig:
                 extravars["kubeconfig_path"] = os.path.abspath(kubeconfig)
 
-            # Parse and pass secrets to Ansible
             if k8s_secrets:
                 extravars["k8s_generic_secrets"] = self._parse_k8s_secrets(k8s_secrets)
 
@@ -563,25 +588,12 @@ class SetupRunner:
                 extravars["k8s_registry_secrets"] = self._parse_registry_secrets(registry_secrets)
 
             if deploy_method == "manifest":
-                if not manifest:
-                    raise ValueError("--manifest is required for manifest deployment")
-                if not os.path.exists(manifest):
-                    raise FileNotFoundError(f"Manifest not found: {manifest}")
                 extravars["k8s_manifest"] = os.path.abspath(manifest)
-
             elif deploy_method == "helm":
-                if not helm_chart:
-                    raise ValueError("--helm-chart is required for Helm deployment")
-                if not helm_release:
-                    raise ValueError("--helm-release is required for Helm deployment")
                 extravars["helm_chart"] = helm_chart
                 extravars["helm_release"] = helm_release
                 if helm_values:
-                    if not os.path.exists(helm_values):
-                        raise FileNotFoundError(f"Helm values file not found: {helm_values}")
                     extravars["helm_values"] = os.path.abspath(helm_values)
-            else:
-                raise ValueError(f"Unknown deploy method: {deploy_method}. Use 'manifest' or 'helm'.")
 
             self._run_ansible_playbook(extravars, "k8s_deploy.yml")
 
