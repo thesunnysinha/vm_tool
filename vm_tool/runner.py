@@ -244,15 +244,31 @@ class SetupRunner:
         return None
 
     def _run_ansible_playbook(
-        self, extravars: dict, inventory_file: str = "inventory.yml"
+        self,
+        extravars: dict,
+        playbook: str = "main.yml",
+        inventory_file: str = "inventory.yml",
     ):
-        """Executes an Ansible playbook with the given variables and inventory."""
+        """Executes an Ansible playbook with the given variables and inventory.
+
+        Args:
+            extravars: Variables to pass to the playbook.
+            playbook: Playbook filename (relative to vm_setup/) or absolute path.
+            inventory_file: Inventory filename (relative to vm_setup/) or absolute path.
+        """
         current_dir = os.path.dirname(os.path.abspath(__file__))
         venv_dir = os.path.join(sys.prefix, "ansible_runner_data")
         os.makedirs(venv_dir, exist_ok=True)
 
-        playbook_path = os.path.join(current_dir, "vm_setup", "main.yml")
-        inventory_path = os.path.join(current_dir, "vm_setup", inventory_file)
+        if os.path.isabs(playbook):
+            playbook_path = playbook
+        else:
+            playbook_path = os.path.join(current_dir, "vm_setup", playbook)
+
+        if os.path.isabs(inventory_file):
+            inventory_path = inventory_file
+        else:
+            inventory_path = os.path.join(current_dir, "vm_setup", inventory_file)
 
         try:
             r = ansible_runner.run(
@@ -415,14 +431,14 @@ class SetupRunner:
         logger.info("Starting K8s setup...")
         # Reuse existing variables or allow bare execution
         extravars = {"ansible_python_interpreter": "/usr/bin/python3"}
-        self._run_ansible_playbook(extravars, "k8s.yml")
+        self._run_ansible_playbook(extravars, playbook="k8s.yml")
         logger.info("K8s setup completed.")
 
     def run_monitoring_setup(self, inventory_file="inventory.yml"):
         """Runs the Monitoring setup playbook."""
         logger.info("Starting Monitoring setup...")
         extravars = {"ansible_python_interpreter": "/usr/bin/python3"}
-        self._run_ansible_playbook(extravars, "monitoring.yml")
+        self._run_ansible_playbook(extravars, playbook="monitoring.yml")
         logger.info("Monitoring setup completed.")
 
     def run_k8s_deploy(
@@ -595,7 +611,11 @@ class SetupRunner:
                 if helm_values:
                     extravars["helm_values"] = os.path.abspath(helm_values)
 
-            self._run_ansible_playbook(extravars, "k8s_deploy.yml")
+            self._run_ansible_playbook(
+                extravars,
+                playbook="k8s_deploy.yml",
+                inventory_file=generated_inventory_path,
+            )
 
             # Record deployment state
             if host and deploy_hash and not dry_run:
