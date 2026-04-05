@@ -139,15 +139,33 @@
       loop_control:
         label: "{{ item.item | default('unknown') }}"
 
-    - name: Wait for rollout to complete (manifest)
+    - name: Get deployment names
+      shell: >
+        kubectl --kubeconfig {{ kubeconfig_path }}
+        get deployments --namespace {{ k8s_namespace }}
+        -o jsonpath='{.items[*].metadata.name}'
+      register: deployment_names
+      changed_when: false
+      when: deploy_method == 'manifest' and not dry_run
+
+    - name: Wait for each deployment rollout
       command: >
         kubectl --kubeconfig {{ kubeconfig_path }}
-        rollout status deployment --all
+        rollout status deployment/{{ item }}
         --namespace {{ k8s_namespace }}
         --timeout={{ rollout_timeout }}
-      when: deploy_method == 'manifest' and not dry_run
+      loop: "{{ deployment_names.stdout.split() | default([]) }}"
+      when: deploy_method == 'manifest' and not dry_run and deployment_names.stdout | default('') | length > 0
       register: rollout_status
-      changed_when: false
+      ignore_errors: true
+
+    - name: Report failed rollouts
+      debug:
+        msg: "WARNING: Rollout failed for {{ item.item }}: {{ item.stderr | default('unknown') }}"
+      loop: "{{ rollout_status.results | default([]) }}"
+      when: item.rc is defined and item.rc != 0
+      loop_control:
+        label: "{{ item.item | default('unknown') }}"
 
     # --- Helm deployment ---
     - name: Verify helm is available
