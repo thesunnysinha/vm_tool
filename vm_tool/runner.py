@@ -434,137 +434,290 @@ class SetupRunner:
         helm_release: str = None,
         helm_values: str = None,
         kubeconfig: str = None,
+        kubeconfig_b64: str = None,
         inventory_file: str = "inventory.yml",
         host: str = None,
         user: str = None,
         timeout: int = 300,
         dry_run: bool = False,
         force: bool = False,
+        image_substitutions: List[str] = None,
+        k8s_secrets: List[str] = None,
+        registry_secrets: List[str] = None,
     ):
         """Deploy to Kubernetes using kubectl/helm via Ansible.
 
         Args:
             deploy_method: 'manifest' or 'helm'
             namespace: Kubernetes namespace
-            manifest: Path to K8s manifest file(s) or kustomization directory
+            manifest: Path to K8s manifest file(s) or directory
             helm_chart: Helm chart name/path
             helm_release: Helm release name
             helm_values: Path to Helm values file
             kubeconfig: Path to kubeconfig file
+            kubeconfig_b64: Base64-encoded kubeconfig (for CI)
             inventory_file: Ansible inventory file
             host: Target host (generates dynamic inventory)
             user: SSH user for target host
             timeout: Rollout timeout in seconds
             dry_run: Preview without applying
             force: Force redeployment
+            image_substitutions: List of "PLACEHOLDER=actual-image:tag" pairs
+            k8s_secrets: List of "secret-name=KEY1=val1\\nKEY2=val2" pairs
+            registry_secrets: List of "secret-name=server:user:token" triples
         """
+        import base64
+        import tempfile
+        import shutil
+
         from vm_tool.state import DeploymentState
 
         state = DeploymentState()
+        temp_kubeconfig = None
+        temp_manifest_dir = None
 
-        # Determine what to hash for idempotency
-        hash_target = manifest or helm_values or helm_chart or ""
-        if hash_target and os.path.exists(hash_target):
-            deploy_hash = state.compute_hash(hash_target)
-        else:
-            deploy_hash = None
-
-        service_name = f"k8s-{namespace}"
-        if host and deploy_hash and not force and not dry_run:
-            if not state.needs_update(host, deploy_hash, service_name):
-                logger.info(
-                    f"Deployment is up-to-date for {host}/{namespace}. "
-                    f"Use --force to redeploy."
+        try:
+            # Handle base64-encoded kubeconfig (CI pipelines)
+            if kubeconfig_b64:
+                decoded = base64.b64decode(kubeconfig_b64)
+                temp_kubeconfig = tempfile.NamedTemporaryFile(
+                    mode="wb", suffix=".kubeconfig", delete=False
                 )
-                print(
-                    f"No changes detected for {namespace}. "
-                    f"Use --force to redeploy."
-                )
-                return
+                temp_kubeconfig.write(decoded)
+                temp_kubeconfig.close()
+                os.chmod(temp_kubeconfig.name, 0o600)
+                kubeconfig = temp_kubeconfig.name
+                logger.info("Decoded base64 kubeconfig to temp file")
 
-        # Generate dynamic inventory if host is provided
-        target_inventory = inventory_file
-        if host:
-            inventory_content = {
-                "all": {
-                    "hosts": {
-                        "target_host": {
-                            "ansible_host": host,
-                            "ansible_connection": "ssh",
-                            "ansible_ssh_common_args": "-o StrictHostKeyChecking=no",
-                        }
-                    },
-                    "vars": {"ansible_python_interpreter": "/usr/bin/python3"},
+            # Determine what to hash for idempotency
+            hash_target = manifest or helm_values or helm_chart or ""
+            if hash_target and os.path.exists(hash_target):
+                deploy_hash = state.compute_hash(hash_target)
+            else:
+                deploy_hash = None
+
+            service_name = f"k8s-{namespace}"
+            if host and deploy_hash and not force and not dry_run:
+                if not state.needs_update(host, deploy_hash, service_name):
+                    logger.info(
+                        f"Deployment is up-to-date for {host}/{namespace}. "
+                        f"Use --force to redeploy."
+                    )
+                    print(
+                        f"No changes detected for {namespace}. "
+                        f"Use --force to redeploy."
+                    )
+                    return
+
+            # Handle image substitutions in manifests
+            if image_substitutions and manifest and deploy_method == "manifest":
+                manifest = self._substitute_images(manifest, image_substitutions)
+                temp_manifest_dir = os.path.dirname(manifest) if not os.path.isdir(manifest) else None
+
+            # Generate dynamic inventory if host is provided
+            target_inventory = inventory_file
+            if host:
+                inventory_content = {
+                    "all": {
+                        "hosts": {
+                            "target_host": {
+                                "ansible_host": host,
+                                "ansible_connection": "ssh",
+                                "ansible_ssh_common_args": "-o StrictHostKeyChecking=no",
+                            }
+                        },
+                        "vars": {"ansible_python_interpreter": "/usr/bin/python3"},
+                    }
                 }
+                if user:
+                    inventory_content["all"]["hosts"]["target_host"]["ansible_user"] = user
+
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                generated_inventory_path = os.path.join(
+                    current_dir, "vm_setup", "generated_inventory.yml"
+                )
+                with open(generated_inventory_path, "w") as f:
+                    yaml.dump(inventory_content, f)
+                target_inventory = generated_inventory_path
+            else:
+                target_inventory = os.path.abspath(inventory_file)
+
+            logger.info(f"Starting Kubernetes deployment ({deploy_method}) to {namespace}...")
+
+            extravars = {
+                "ansible_python_interpreter": "/usr/bin/python3",
+                "deploy_method": deploy_method,
+                "k8s_namespace": namespace,
+                "rollout_timeout": f"{timeout}s",
+                "dry_run": dry_run,
             }
-            if user:
-                inventory_content["all"]["hosts"]["target_host"]["ansible_user"] = user
 
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            generated_inventory_path = os.path.join(
-                current_dir, "vm_setup", "generated_inventory.yml"
-            )
-            with open(generated_inventory_path, "w") as f:
-                yaml.dump(inventory_content, f)
-            target_inventory = generated_inventory_path
+            if kubeconfig:
+                extravars["kubeconfig_path"] = os.path.abspath(kubeconfig)
+
+            # Parse and pass secrets to Ansible
+            if k8s_secrets:
+                extravars["k8s_generic_secrets"] = self._parse_k8s_secrets(k8s_secrets)
+
+            if registry_secrets:
+                extravars["k8s_registry_secrets"] = self._parse_registry_secrets(registry_secrets)
+
+            if deploy_method == "manifest":
+                if not manifest:
+                    raise ValueError("--manifest is required for manifest deployment")
+                if not os.path.exists(manifest):
+                    raise FileNotFoundError(f"Manifest not found: {manifest}")
+                extravars["k8s_manifest"] = os.path.abspath(manifest)
+
+            elif deploy_method == "helm":
+                if not helm_chart:
+                    raise ValueError("--helm-chart is required for Helm deployment")
+                if not helm_release:
+                    raise ValueError("--helm-release is required for Helm deployment")
+                extravars["helm_chart"] = helm_chart
+                extravars["helm_release"] = helm_release
+                if helm_values:
+                    if not os.path.exists(helm_values):
+                        raise FileNotFoundError(f"Helm values file not found: {helm_values}")
+                    extravars["helm_values"] = os.path.abspath(helm_values)
+            else:
+                raise ValueError(f"Unknown deploy method: {deploy_method}. Use 'manifest' or 'helm'.")
+
+            self._run_ansible_playbook(extravars, "k8s_deploy.yml")
+
+            # Record deployment state
+            if host and deploy_hash and not dry_run:
+                from vm_tool.history import DeploymentHistory
+
+                state.record_deployment(
+                    host=host,
+                    compose_file=manifest or helm_chart or "",
+                    compose_hash=deploy_hash,
+                    service_name=service_name,
+                )
+                history = DeploymentHistory()
+                history.record_deployment(
+                    host=host,
+                    compose_file=manifest or helm_chart or "",
+                    compose_hash=deploy_hash,
+                    status="success",
+                    service_name=service_name,
+                )
+                logger.info(f"Kubernetes deployment to {namespace} completed.")
+
+        finally:
+            # Cleanup temp files
+            if temp_kubeconfig and os.path.exists(temp_kubeconfig.name):
+                os.unlink(temp_kubeconfig.name)
+            if temp_manifest_dir and os.path.exists(temp_manifest_dir):
+                shutil.rmtree(temp_manifest_dir, ignore_errors=True)
+
+    @staticmethod
+    def _substitute_images(manifest_path: str, substitutions: List[str]) -> str:
+        """Replace image placeholders in manifest files.
+
+        Args:
+            manifest_path: Path to manifest file or directory
+            substitutions: List of "PLACEHOLDER=actual-image:tag" strings
+
+        Returns:
+            Path to temp directory with substituted manifests
+        """
+        import tempfile
+        import shutil
+        import glob
+
+        # Parse substitution pairs
+        subs = {}
+        for s in substitutions:
+            if "=" not in s:
+                raise ValueError(
+                    f"Invalid --image format: {s!r}. Expected PLACEHOLDER=image:tag"
+                )
+            placeholder, replacement = s.split("=", 1)
+            subs[placeholder] = replacement
+
+        # Collect manifest files
+        if os.path.isdir(manifest_path):
+            files = sorted(glob.glob(os.path.join(manifest_path, "**/*.yaml"), recursive=True))
+            files += sorted(glob.glob(os.path.join(manifest_path, "**/*.yml"), recursive=True))
         else:
-            target_inventory = os.path.abspath(inventory_file)
+            files = [manifest_path]
 
-        logger.info(f"Starting Kubernetes deployment ({deploy_method}) to {namespace}...")
+        if not files:
+            raise FileNotFoundError(f"No YAML files found in {manifest_path}")
 
-        extravars = {
-            "ansible_python_interpreter": "/usr/bin/python3",
-            "deploy_method": deploy_method,
-            "k8s_namespace": namespace,
-            "rollout_timeout": f"{timeout}s",
-            "dry_run": dry_run,
-        }
+        # Create temp dir with substituted copies
+        temp_dir = tempfile.mkdtemp(prefix="vm_tool_k8s_")
+        for src_file in files:
+            with open(src_file, "r") as f:
+                content = f.read()
 
-        if kubeconfig:
-            extravars["kubeconfig_path"] = os.path.abspath(kubeconfig)
+            for placeholder, replacement in subs.items():
+                content = content.replace(placeholder, replacement)
 
-        if deploy_method == "manifest":
-            if not manifest:
-                raise ValueError("--manifest is required for manifest deployment")
-            if not os.path.exists(manifest):
-                raise FileNotFoundError(f"Manifest not found: {manifest}")
-            extravars["k8s_manifest"] = os.path.abspath(manifest)
+            # Preserve relative structure
+            if os.path.isdir(manifest_path):
+                rel = os.path.relpath(src_file, manifest_path)
+            else:
+                rel = os.path.basename(src_file)
 
-        elif deploy_method == "helm":
-            if not helm_chart:
-                raise ValueError("--helm-chart is required for Helm deployment")
-            if not helm_release:
-                raise ValueError("--helm-release is required for Helm deployment")
-            extravars["helm_chart"] = helm_chart
-            extravars["helm_release"] = helm_release
-            if helm_values:
-                if not os.path.exists(helm_values):
-                    raise FileNotFoundError(f"Helm values file not found: {helm_values}")
-                extravars["helm_values"] = os.path.abspath(helm_values)
-        else:
-            raise ValueError(f"Unknown deploy method: {deploy_method}. Use 'manifest' or 'helm'.")
+            dest = os.path.join(temp_dir, rel)
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            with open(dest, "w") as f:
+                f.write(content)
 
-        self._run_ansible_playbook(extravars, "k8s_deploy.yml")
+        logger.info(f"Substituted {len(subs)} image(s) in {len(files)} manifest(s)")
+        return temp_dir
 
-        # Record deployment state
-        if host and deploy_hash and not dry_run:
-            from vm_tool.history import DeploymentHistory
+    @staticmethod
+    def _parse_k8s_secrets(secrets: List[str]) -> list:
+        """Parse --k8s-secret flags into structured data for Ansible.
 
-            state.record_deployment(
-                host=host,
-                compose_file=manifest or helm_chart or "",
-                compose_hash=deploy_hash,
-                service_name=service_name,
-            )
-            history = DeploymentHistory()
-            history.record_deployment(
-                host=host,
-                compose_file=manifest or helm_chart or "",
-                compose_hash=deploy_hash,
-                status="success",
-                service_name=service_name,
-            )
-            logger.info(f"Kubernetes deployment to {namespace} completed.")
+        Format: "secret-name=KEY1=val1\\nKEY2=val2"
+        Returns list of dicts: [{"name": "secret-name", "data": "KEY1=val1\\nKEY2=val2"}]
+        """
+        result = []
+        for s in secrets:
+            if "=" not in s:
+                raise ValueError(
+                    f"Invalid --k8s-secret format: {s!r}. "
+                    f"Expected name=KEY1=val1\\nKEY2=val2"
+                )
+            name, data = s.split("=", 1)
+            if not name or not data:
+                raise ValueError(f"Invalid --k8s-secret: name and data are both required")
+            result.append({"name": name.strip(), "data": data})
+        return result
+
+    @staticmethod
+    def _parse_registry_secrets(secrets: List[str]) -> list:
+        """Parse --registry-secret flags into structured data for Ansible.
+
+        Format: "secret-name=server:user:token"
+        Returns list of dicts with name, server, username, password.
+        """
+        result = []
+        for s in secrets:
+            if "=" not in s:
+                raise ValueError(
+                    f"Invalid --registry-secret format: {s!r}. "
+                    f"Expected name=server:user:token"
+                )
+            name, spec = s.split("=", 1)
+            parts = spec.split(":", 2)
+            if len(parts) != 3:
+                raise ValueError(
+                    f"Invalid --registry-secret value: {spec!r}. "
+                    f"Expected server:user:token (3 colon-separated parts)"
+                )
+            result.append({
+                "name": name.strip(),
+                "server": parts[0],
+                "username": parts[1],
+                "password": parts[2],
+            })
+        return result
 
     def run_docker_deploy(
         self,

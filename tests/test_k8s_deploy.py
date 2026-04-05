@@ -1,5 +1,6 @@
 """Tests for Kubernetes deployment functionality."""
 
+import base64
 import os
 import tempfile
 from unittest.mock import MagicMock, patch, mock_open
@@ -285,3 +286,150 @@ class TestK8sDeployIdempotency:
             )
 
         assert mock_run.call_count == 2
+
+
+class TestImageSubstitution:
+    """Test --image placeholder substitution."""
+
+    def test_substitute_single_image(self, runner, tmp_path):
+        """Single image placeholder is replaced."""
+        manifest = tmp_path / "deployment.yaml"
+        manifest.write_text(
+            "image: IMAGE_REGISTRY/app:IMAGE_TAG\n"
+            "name: app\n"
+        )
+
+        result_dir = SetupRunner._substitute_images(
+            str(manifest),
+            ["IMAGE_REGISTRY/app:IMAGE_TAG=ghcr.io/user/app:sha-abc123"],
+        )
+
+        result_file = os.path.join(result_dir, "deployment.yaml")
+        assert os.path.exists(result_file)
+        content = open(result_file).read()
+        assert "ghcr.io/user/app:sha-abc123" in content
+        assert "IMAGE_REGISTRY" not in content
+
+        # Cleanup
+        import shutil
+        shutil.rmtree(result_dir)
+
+    def test_substitute_directory(self, runner, tmp_path):
+        """Substitution works on a directory of manifests."""
+        (tmp_path / "backend").mkdir()
+        (tmp_path / "backend" / "deploy.yaml").write_text(
+            "image: PLACEHOLDER:TAG\n"
+        )
+        (tmp_path / "db").mkdir()
+        (tmp_path / "db" / "deploy.yaml").write_text(
+            "image: postgres:16\n"
+        )
+
+        result_dir = SetupRunner._substitute_images(
+            str(tmp_path),
+            ["PLACEHOLDER:TAG=myrepo/app:v2"],
+        )
+
+        backend = open(os.path.join(result_dir, "backend", "deploy.yaml")).read()
+        db = open(os.path.join(result_dir, "db", "deploy.yaml")).read()
+        assert "myrepo/app:v2" in backend
+        assert "postgres:16" in db  # Unchanged
+
+        import shutil
+        shutil.rmtree(result_dir)
+
+    def test_invalid_image_format(self, runner):
+        """Invalid --image format raises ValueError."""
+        with pytest.raises(ValueError, match="Invalid --image format"):
+            SetupRunner._substitute_images("/tmp", ["no-equals-sign"])
+
+
+class TestSecretParsing:
+    """Test --k8s-secret and --registry-secret parsing."""
+
+    def test_parse_generic_secret(self):
+        """Parse generic secret from env string."""
+        result = SetupRunner._parse_k8s_secrets(
+            ["backend-secret=DB_HOST=localhost\nDB_PORT=5432"]
+        )
+        assert len(result) == 1
+        assert result[0]["name"] == "backend-secret"
+        assert "DB_HOST=localhost" in result[0]["data"]
+
+    def test_parse_multiple_secrets(self):
+        """Parse multiple generic secrets."""
+        result = SetupRunner._parse_k8s_secrets([
+            "backend-secret=KEY=val",
+            "db-secret=PG_PASS=secret",
+        ])
+        assert len(result) == 2
+        assert result[0]["name"] == "backend-secret"
+        assert result[1]["name"] == "db-secret"
+
+    def test_invalid_secret_format(self):
+        """Invalid format raises ValueError."""
+        with pytest.raises(ValueError, match="Invalid --k8s-secret"):
+            SetupRunner._parse_k8s_secrets(["no-equals"])
+
+    def test_parse_registry_secret(self):
+        """Parse docker-registry secret."""
+        result = SetupRunner._parse_registry_secrets(
+            ["ghcr-secret=ghcr.io:myuser:ghp_token123"]
+        )
+        assert len(result) == 1
+        assert result[0]["name"] == "ghcr-secret"
+        assert result[0]["server"] == "ghcr.io"
+        assert result[0]["username"] == "myuser"
+        assert result[0]["password"] == "ghp_token123"
+
+    def test_invalid_registry_format(self):
+        """Invalid registry format raises ValueError."""
+        with pytest.raises(ValueError, match="Invalid --registry-secret"):
+            SetupRunner._parse_registry_secrets(["no-equals"])
+
+    def test_registry_missing_parts(self):
+        """Registry secret with wrong number of colon parts raises."""
+        with pytest.raises(ValueError, match="3 colon-separated parts"):
+            SetupRunner._parse_registry_secrets(["name=server:user"])
+
+
+class TestKubeconfigB64:
+    """Test --kubeconfig-b64 decoding."""
+
+    @patch("ansible_runner.run")
+    def test_kubeconfig_b64_decoded(self, mock_run, runner, temp_manifest):
+        """Base64 kubeconfig is decoded to a temp file."""
+        mock_run.return_value = MagicMock(status="successful", rc=0)
+        kubeconfig_content = b"apiVersion: v1\nclusters: []\n"
+        b64 = base64.b64encode(kubeconfig_content).decode()
+
+        runner.run_k8s_deploy(
+            deploy_method="manifest",
+            manifest=temp_manifest,
+            kubeconfig_b64=b64,
+            force=True,
+        )
+
+        mock_run.assert_called_once()
+        call_kwargs = mock_run.call_args
+        extravars = call_kwargs.kwargs.get("extravars") or call_kwargs[1].get("extravars")
+        # kubeconfig_path should point to a file (may be cleaned up already)
+        assert "kubeconfig_path" in extravars
+
+    @patch("ansible_runner.run")
+    def test_kubeconfig_b64_cleanup(self, mock_run, runner, temp_manifest):
+        """Temp kubeconfig file is cleaned up after deployment."""
+        mock_run.return_value = MagicMock(status="successful", rc=0)
+        b64 = base64.b64encode(b"test").decode()
+
+        runner.run_k8s_deploy(
+            deploy_method="manifest",
+            manifest=temp_manifest,
+            kubeconfig_b64=b64,
+            force=True,
+        )
+
+        # Verify no leaked temp files with .kubeconfig suffix
+        import glob
+        leaked = glob.glob("/tmp/*.kubeconfig")
+        assert len(leaked) == 0, f"Leaked kubeconfig files: {leaked}"

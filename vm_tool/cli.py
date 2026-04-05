@@ -335,6 +335,36 @@ def main():
         action="store_true",
         help="Force redeployment even if no changes detected",
     )
+    k8s_deploy_parser.add_argument(
+        "--image",
+        action="append",
+        dest="images",
+        metavar="PLACEHOLDER=IMAGE:TAG",
+        help="Replace image placeholder in manifests (repeatable). "
+             "Example: --image IMAGE_REGISTRY/app:IMAGE_TAG=ghcr.io/user/app:sha-abc",
+    )
+    k8s_deploy_parser.add_argument(
+        "--k8s-secret",
+        action="append",
+        dest="k8s_secrets",
+        metavar="NAME=KEY1=val1\\nKEY2=val2",
+        help="Create/sync a generic K8s secret from env string (repeatable). "
+             "Example: --k8s-secret backend-secret=\"DB_HOST=db\\nDB_PORT=5432\"",
+    )
+    k8s_deploy_parser.add_argument(
+        "--registry-secret",
+        action="append",
+        dest="registry_secrets",
+        metavar="NAME=SERVER:USER:TOKEN",
+        help="Create/sync a docker-registry pull secret (repeatable). "
+             "Example: --registry-secret ghcr-secret=ghcr.io:user:ghp_token",
+    )
+    k8s_deploy_parser.add_argument(
+        "--kubeconfig-b64",
+        type=str,
+        help="Base64-encoded kubeconfig (for CI pipelines). "
+             "Decoded to temp file at runtime.",
+    )
 
     # Completion command
     completion_parser = subparsers.add_parser(
@@ -818,12 +848,16 @@ def main():
                 helm_release=args.helm_release,
                 helm_values=args.helm_values,
                 kubeconfig=args.kubeconfig,
+                kubeconfig_b64=getattr(args, "kubeconfig_b64", None),
                 inventory_file=args.inventory,
                 host=args.host,
                 user=args.user,
                 timeout=args.timeout,
                 dry_run=args.dry_run,
                 force=args.force,
+                image_substitutions=getattr(args, "images", None),
+                k8s_secrets=getattr(args, "k8s_secrets", None),
+                registry_secrets=getattr(args, "registry_secrets", None),
             )
 
             if not args.dry_run:
