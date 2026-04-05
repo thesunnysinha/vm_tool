@@ -373,7 +373,7 @@ class SetupRunner:
             extravars["ENV_PATH"] = self.env_path
             extravars["ENV_DATA"] = self.env_data
 
-        self._run_ansible_playbook(extravars, "inventory.yml")
+        self._run_ansible_playbook(extravars, inventory_file="inventory.yml")
 
     def run_cloud_setup(self, ssh_configs: List[SSHConfig]):
         """Runs the cloud setup using Ansible with dynamic inventory generation."""
@@ -424,7 +424,7 @@ class SetupRunner:
             extravars["ENV_PATH"] = self.env_path
             extravars["ENV_DATA"] = self.env_data
 
-        self._run_ansible_playbook(extravars, "dynamic_inventory.yml")
+        self._run_ansible_playbook(extravars, inventory_file="dynamic_inventory.yml")
 
     def run_k8s_setup(self, inventory_file="inventory.yml"):
         """Runs the K8s setup playbook."""
