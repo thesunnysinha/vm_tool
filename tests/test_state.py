@@ -30,10 +30,28 @@ def test_compute_hash(temp_state_dir, tmp_path):
     hash2 = state.compute_hash(str(compose_file))
     assert hash1 == hash2
 
-    # Different content should produce different hash
-    compose_file.write_text("version: '3'\nservices:\n  web:\n    image: apache")
-    hash3 = state.compute_hash(str(compose_file))
-    assert hash1 != hash3
+
+def test_compute_hash_directory(temp_state_dir, tmp_path):
+    """Test computing hash of a directory of YAML files."""
+    state = DeploymentState(temp_state_dir)
+
+    # Create a directory with multiple YAML files
+    k8s_dir = tmp_path / "k8s"
+    k8s_dir.mkdir()
+    (k8s_dir / "deployment.yaml").write_text("kind: Deployment\nimage: nginx")
+    (k8s_dir / "service.yaml").write_text("kind: Service\nport: 80")
+
+    hash1 = state.compute_hash(str(k8s_dir))
+    assert len(hash1) == 64
+
+    # Same content should produce same hash
+    hash2 = state.compute_hash(str(k8s_dir))
+    assert hash1 == hash2
+
+    # Changing a file should change the hash
+    (k8s_dir / "deployment.yaml").write_text("kind: Deployment\nimage: nginx:v2")
+    hash3 = state.compute_hash(str(k8s_dir))
+    assert hash3 != hash1
 
 
 def test_record_and_get_deployment(temp_state_dir):

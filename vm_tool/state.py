@@ -3,6 +3,7 @@
 import hashlib
 import json
 import logging
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -41,13 +42,30 @@ class DeploymentState:
             json.dump(state, f, indent=2)
 
     def compute_hash(self, compose_file: str) -> str:
-        """Compute hash of docker-compose file for change detection."""
+        """Compute hash of a file or directory for change detection."""
         try:
+            if os.path.isdir(compose_file):
+                return self._compute_dir_hash(compose_file)
             with open(compose_file, "rb") as f:
                 return hashlib.sha256(f.read()).hexdigest()
-        except FileNotFoundError:
-            logger.warning(f"Compose file not found: {compose_file}")
+        except (FileNotFoundError, OSError):
+            logger.warning(f"File not found: {compose_file}")
             return ""
+
+    @staticmethod
+    def _compute_dir_hash(directory: str) -> str:
+        """Compute combined hash of all YAML files in a directory."""
+        import glob
+
+        h = hashlib.sha256()
+        files = sorted(
+            glob.glob(os.path.join(directory, "**/*.yaml"), recursive=True)
+            + glob.glob(os.path.join(directory, "**/*.yml"), recursive=True)
+        )
+        for f in files:
+            with open(f, "rb") as fh:
+                h.update(fh.read())
+        return h.hexdigest()
 
     def record_deployment(
         self,
