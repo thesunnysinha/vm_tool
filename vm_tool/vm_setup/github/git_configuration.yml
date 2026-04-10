@@ -23,24 +23,28 @@
         git_credentials: "{{ git_credentials_content.content | b64decode }}"
       when: git_credentials_stat.stat.exists
 
+    - name: Resolve GitHub token from variable or environment
+      set_fact:
+        resolved_github_token: "{{ GITHUB_TOKEN | default(lookup('env', 'VM_TOOL_GITHUB_TOKEN')) }}"
+
     - name: Fail if Git credentials not configured and vars not provided
       fail:
         msg: >
-          Git credentials not found and GITHUB_USERNAME/GITHUB_TOKEN not provided. Aborting.
+          Git credentials not found and GITHUB_USERNAME/token not provided. Aborting.
       when: >
         (not git_credentials_stat.stat.exists or
         ("{{ GITHUB_USERNAME }}" not in git_credentials | default(''))) and
-        (GITHUB_USERNAME is not defined or GITHUB_TOKEN is not defined)
+        (GITHUB_USERNAME is not defined or resolved_github_token == '')
 
     - name: Configure Git with GitHub token if not already configured
       shell: |
         git config --global credential.helper store
-        echo "https://{{ GITHUB_USERNAME }}:{{ GITHUB_TOKEN }}@github.com" > ~/.git-credentials
+        echo "https://{{ GITHUB_USERNAME }}:{{ resolved_github_token }}@github.com" > ~/.git-credentials
       become: yes
       when: >
         (not git_credentials_stat.stat.exists or
         ("{{ GITHUB_USERNAME }}" not in git_credentials | default(''))) and
-        (GITHUB_USERNAME is defined and GITHUB_TOKEN is defined)
+        (GITHUB_USERNAME is defined and resolved_github_token != '')
 
     # --- Git Clone or Pull Logic ---
     - name: Check if .git directory exists (repo already cloned)

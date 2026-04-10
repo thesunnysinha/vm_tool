@@ -94,15 +94,16 @@ graph LR
 | CI/CD generation | `vm_tool generate-pipeline` |
 | Secrets sync | `vm_tool secrets sync --env-file .env --repo owner/repo` |
 | Dry-run | `vm_tool deploy-docker --profile prod --dry-run` |
+| Prerequisites check | `vm_tool doctor` |
+| Deployment status | `vm_tool status` |
 
 ---
 
 ## Roadmap
 
-- Blue-green and canary deployment strategies (CLI integration)
-- Multi-cloud VM provisioning (AWS/GCP/Azure)
-- Compliance scanning
 - GitOps integration (ArgoCD/Flux)
+- Web dashboard
+- Notification webhooks (Slack/Discord)
 
 ---
 

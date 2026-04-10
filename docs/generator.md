@@ -123,7 +123,7 @@ jobs:
       - name: Validate SSH Connection
         run: |
           echo "✅ Testing SSH connection..."
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \\
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new \\
             \${{ secrets.EC2_USER }}@\${{ secrets.EC2_HOST }} "echo 'Connected'" || {
             echo "❌ SSH failed! Check docs/ssh-key-setup.md"
             exit 1

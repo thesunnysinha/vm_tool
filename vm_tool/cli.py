@@ -437,6 +437,13 @@ def main():
         "--repo", type=str, help="Target GitHub repository (owner/repo)"
     )
 
+    # Doctor command
+    subparsers.add_parser("doctor", help="Check prerequisites and environment health")
+
+    # Status command
+    status_parser = subparsers.add_parser("status", help="Show deployment state for all known hosts")
+    status_parser.add_argument("--host", type=str, help="Filter by host")
+
     args = parser.parse_args()
 
     # Configure logging based on flags
@@ -455,644 +462,80 @@ def main():
         logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
 
     if args.command == "config":
-        from vm_tool.config import Config
-
-        config = Config()
-
-        if args.config_command == "set":
-            config.set(args.key, args.value)
-            print(f"✅ Set {args.key} = {args.value}")
-
-        elif args.config_command == "get":
-            value = config.get(args.key)
-            if value is not None:
-                print(f"{args.key} = {value}")
-            else:
-                print(f"❌ Config key '{args.key}' not found")
-                sys.exit(1)
-
-        elif args.config_command == "unset":
-            config.unset(args.key)
-            print(f"✅ Unset {args.key}")
-
-        elif args.config_command == "list":
-            all_config = config.list_all()
-            if all_config:
-                print("📋 Configuration:")
-                for key, value in all_config.items():
-                    print(f"  {key} = {value}")
-            else:
-                print("No configuration set")
-
-        elif args.config_command == "create-profile":
-            profile_data = {}
-            if args.host:
-                profile_data["host"] = args.host
-            if args.user:
-                profile_data["user"] = args.user
-            if args.compose_file:
-                profile_data["compose_file"] = args.compose_file
-
-            config.create_profile(
-                args.name, environment=args.environment, **profile_data
-            )
-            print(f"✅ Created profile '{args.name}' (environment: {args.environment})")
-
-        elif args.config_command == "list-profiles":
-            profiles = config.list_profiles()
-            if profiles:
-                print("📋 Profiles:")
-                for name, data in profiles.items():
-                    print(f"  {name}:")
-                    for key, value in data.items():
-                        print(f"    {key} = {value}")
-            else:
-                print("No profiles configured")
-
-        elif args.config_command == "delete-profile":
-            config.delete_profile(args.name)
-            print(f"✅ Deleted profile '{args.name}'")
-
-        else:
-            config_parser.print_help()
+        from vm_tool.handlers.config import handle_config
+        handle_config(args, config_parser)
 
     elif args.command == "history":
-        from vm_tool.history import DeploymentHistory
-
-        history = DeploymentHistory()
-        deployments = history.get_history(host=args.host, limit=args.limit)
-
-        if not deployments:
-            print("No deployment history found")
-        else:
-            print(
-                f"\n📜 Deployment History (showing {len(deployments)} deployments):\n"
-            )
-            for dep in deployments:
-                status_icon = "✅" if dep.get("status") == "success" else "❌"
-                print(f"{status_icon} {dep['id']} - {dep['timestamp']}")
-                print(f"   Host: {dep['host']}")
-                print(f"   Service: {dep.get('service_name', 'default')}")
-                print(f"   Compose: {dep['compose_file']}")
-                if dep.get("git_commit"):
-                    print(f"   Git: {dep['git_commit'][:8]}")
-                if dep.get("error"):
-                    print(f"   Error: {dep['error']}")
-                print()
+        from vm_tool.handlers.ops import handle_history
+        handle_history(args)
 
     elif args.command == "rollback":
-        from vm_tool.history import DeploymentHistory
-        from vm_tool.runner import SetupRunner, SetupRunnerConfig
-
-        history = DeploymentHistory()
-        rollback_info = history.get_rollback_info(args.host, args.to)
-
-        if not rollback_info:
-            print(f"❌ No deployment found to rollback to")
-            sys.exit(1)
-
-        print(f"\n🔄 Rolling back to deployment: {rollback_info['id']}")
-        print(f"   Timestamp: {rollback_info['timestamp']}")
-        print(f"   Compose: {rollback_info['compose_file']}")
-        if rollback_info.get("git_commit"):
-            print(f"   Git commit: {rollback_info['git_commit'][:8]}")
-
-        confirm = input("\nProceed with rollback? (yes/no): ").strip().lower()
-        if confirm != "yes":
-            print("❌ Rollback cancelled")
-            sys.exit(0)
-
-        try:
-            config = SetupRunnerConfig(github_project_url="dummy")
-            runner = SetupRunner(config)
-            runner.run_docker_deploy(
-                compose_file=rollback_info["compose_file"],
-                inventory_file=args.inventory,
-                host=args.host,
-                user=None,  # Will use inventory
-                force=True,  # Force redeployment
-            )
-            print("\n✅ Rollback completed successfully")
-        except Exception as e:
-            print(f"\n❌ Rollback failed: {e}")
-            sys.exit(1)
+        from vm_tool.handlers.ops import handle_rollback
+        handle_rollback(args)
 
     elif args.command == "drift-check":
-        from vm_tool.drift import DriftDetector
-
-        detector = DriftDetector()
-        drifts = detector.check_drift(args.host, args.user)
-
-        if not drifts:
-            print(f"✅ No drift detected on {args.host}")
-        else:
-            print(f"\n⚠️  Drift Detected on {args.host}:\n")
-            for drift in drifts:
-                status_icon = "🔄" if drift["status"] == "modified" else "❌"
-                print(f"{status_icon} {drift['file']}")
-                print(f"   Status: {drift['status']}")
-                print(f"   Expected: {drift['expected'][:16]}...")
-                if drift["actual"]:
-                    print(f"   Actual: {drift['actual'][:16]}...")
-                print()
-            print(f"Found {len(drifts)} file(s) with drift")
-            sys.exit(1)
+        from vm_tool.handlers.ops import handle_drift
+        handle_drift(args)
 
     elif args.command == "backup":
-        from vm_tool.backup import BackupManager
-
-        manager = BackupManager()
-
-        if args.backup_command == "create":
-            try:
-                backup_id = manager.create_backup(
-                    host=args.host, user=args.user, paths=args.paths
-                )
-                print(f"✅ Backup created: {backup_id}")
-            except Exception as e:
-                print(f"❌ Backup failed: {e}")
-                sys.exit(1)
-
-        elif args.backup_command == "list":
-            backups = manager.list_backups(host=args.host)
-            if not backups:
-                print("No backups found")
-            else:
-                print(f"\\n📦 Available Backups ({len(backups)}):\\n")
-                for backup in backups:
-                    size_mb = backup["size"] / (1024 * 1024)
-                    print(f"  {backup['id']}")
-                    print(f"    Host: {backup['host']}")
-                    print(f"    Time: {backup['timestamp']}")
-                    print(f"    Size: {size_mb:.2f} MB")
-                    print(f"    Paths: {', '.join(backup['paths'])}")
-                    print()
-
-        elif args.backup_command == "restore":
-            try:
-                manager.restore_backup(args.id, args.host, args.user)
-                print(f"✅ Backup restored: {args.id}")
-            except Exception as e:
-                print(f"❌ Restore failed: {e}")
-                sys.exit(1)
+        from vm_tool.handlers.ops import handle_backup
+        handle_backup(args)
 
     elif args.command == "setup":
-        from vm_tool.runner import SetupRunner, SetupRunnerConfig
-
-        config = SetupRunnerConfig(
-            github_username=args.github_username,
-            github_token=args.github_token,
-            github_project_url=args.github_project_url,
-            github_branch=args.github_branch,
-            docker_compose_file_path=args.docker_compose_file_path,
-            dockerhub_username=args.dockerhub_username,
-            dockerhub_password=args.dockerhub_password,
-        )
-        runner = SetupRunner(config)
-        runner.run_setup()
-        print("✅ VM setup complete!")
+        from vm_tool.handlers.setup import handle_setup
+        handle_setup(args)
 
     elif args.command == "setup-cloud":
-        import json
-        from vm_tool.runner import SetupRunner, SetupRunnerConfig, SSHConfig
-
-        config = SetupRunnerConfig(
-            github_username=args.github_username,
-            github_token=args.github_token,
-            github_project_url=args.github_project_url,
-            github_branch=args.github_branch,
-            docker_compose_file_path=args.docker_compose_file_path,
-        )
-        runner = SetupRunner(config)
-
-        # Load SSH configs from JSON file
-        with open(args.ssh_configs, "r") as f:
-            ssh_data = json.load(f)
-
-        ssh_configs = [SSHConfig(**cfg) for cfg in ssh_data]
-        runner.run_cloud_setup(ssh_configs)
-        print("✅ Cloud setup complete!")
+        from vm_tool.handlers.setup import handle_cloud_setup
+        handle_cloud_setup(args)
 
     elif args.command == "setup-k8s":
-        try:
-            # We need a dummy config to init SetupRunner, or refactor SetupRunner to be more flexible.
-            # For now, we pass minimal required args.
-            from vm_tool.runner import SetupRunner, SetupRunnerConfig
-
-            config = SetupRunnerConfig(github_project_url="dummy")
-            runner = SetupRunner(config)
-            runner.run_k8s_setup(inventory_file=args.inventory)
-        except Exception as e:
-            print(f"Error: {e}")
-            sys.exit(1)
+        from vm_tool.handlers.setup import handle_k8s_setup
+        handle_k8s_setup(args)
 
     elif args.command == "setup-monitoring":
-        try:
-            from vm_tool.runner import SetupRunner, SetupRunnerConfig
-
-            config = SetupRunnerConfig(github_project_url="dummy")
-            runner = SetupRunner(config)
-            runner.run_monitoring_setup(inventory_file=args.inventory)
-        except Exception as e:
-            print(f"Error: {e}")
-            sys.exit(1)
-
-    elif args.command == "deploy-docker":
-        try:
-            from vm_tool.config import Config
-            from vm_tool.runner import SetupRunner, SetupRunnerConfig
-
-            # Load profile if specified
-            profile_data = {}
-            if args.profile:
-                config = Config()
-                profile_data = config.get_profile(args.profile) or {}
-                if not profile_data:
-                    print(f"❌ Profile '{args.profile}' not found")
-                    sys.exit(1)
-                print(f"📋 Using profile: {args.profile}")
-
-                # Safety check for production deployments
-                if profile_data.get("environment") == "production":
-                    if not args.force:
-                        confirm = (
-                            input(
-                                "⚠️  You are deploying to PRODUCTION. Type 'yes' to confirm: "
-                            )
-                            .strip()
-                            .lower()
-                        )
-                        if confirm != "yes":
-                            print("❌ Deployment cancelled")
-                            sys.exit(0)
-
-            # Merge profile with CLI args (CLI args take precedence)
-            host = args.host or profile_data.get("host")
-            user = args.user or profile_data.get("user")
-            compose_file = args.compose_file or profile_data.get(
-                "compose_file", "docker-compose.yml"
-            )
-
-            # Project Directory Logic
-            project_dir = args.project_dir
-            if not project_dir:
-                if args.repo_name:
-                    project_dir = f"~/apps/{args.repo_name}"
-                else:
-                    project_dir = "~/app"
-
-            # Dry-run mode: show what would be deployed
-            if args.dry_run:
-                print("\n🔍 DRY-RUN MODE - No changes will be made\n")
-                print(f"📋 Deployment Plan:")
-                print(f"   Target Host: {host or 'from inventory'}")
-                print(f"   SSH User: {user or 'from inventory'}")
-                print(f"   Compose File: {compose_file}")
-                print(f"   Project Dir: {project_dir}")
-                print(f"   Inventory: {args.inventory}")
-                if args.env_file:
-                    print(f"   Env File: {args.env_file}")
-                if args.deploy_command:
-                    print(f"   Custom Command: {args.deploy_command}")
-
-                # Show compose file contents
-                import os
-
-                if os.path.exists(compose_file):
-                    print(f"\n📄 Compose File Contents ({compose_file}):")
-                    with open(compose_file, "r") as f:
-                        for i, line in enumerate(f, 1):
-                            print(f"   {i:3d} | {line.rstrip()}")
-                else:
-                    print(f"\n⚠️  Compose file not found: {compose_file}")
-
-                print(f"\n✅ Dry-run complete. Use without --dry-run to deploy.")
-                sys.exit(0)
-
-            # For deployment, we might need github creds if the playbook pulls code
-            # But for now we use dummy or env vars
-            config = SetupRunnerConfig(github_project_url="dummy")
-            runner = SetupRunner(config)
-            runner.run_docker_deploy(
-                compose_file=compose_file,
-                inventory_file=args.inventory,
-                host=host,
-                user=user,
-                env_file=args.env_file,
-                deploy_command=args.deploy_command,
-                force=args.force,
-                project_dir=project_dir,
-            )
-
-            # Run health checks if specified
-            if host and (args.health_check or args.health_port or args.health_url):
-                from vm_tool.health import SmokeTestSuite
-
-                print(
-                    f"\n🏥 Running Health Checks (Timeout: {args.health_timeout}s)..."
-                )
-                suite = SmokeTestSuite(host, timeout=args.health_timeout)
-
-                if args.health_port:
-                    suite.add_port_check(args.health_port)
-
-                if args.health_url:
-                    suite.add_http_check(args.health_url)
-
-                if args.health_check:
-                    suite.add_custom_check(args.health_check, "Custom Health Check")
-
-                if not suite.run_all():
-                    print(
-                        "\n❌ Health checks failed. Deployment may not be working correctly."
-                    )
-                    sys.exit(1)
-                else:
-                    print("\n✅ All health checks passed!")
-
-        except Exception as e:
-            print(f"Error: {e}")
-            sys.exit(1)
-
-    elif args.command == "deploy-k8s":
-        try:
-            from vm_tool.runner import SetupRunner, SetupRunnerConfig
-
-            # Dry-run mode
-            if args.dry_run:
-                print("\n🔍 DRY-RUN MODE - No changes will be applied\n")
-                print(f"📋 Kubernetes Deployment Plan:")
-                print(f"   Method: {args.method}")
-                print(f"   Namespace: {args.namespace}")
-                if args.method == "manifest":
-                    print(f"   Manifest: {args.manifest}")
-                else:
-                    print(f"   Helm Chart: {args.helm_chart}")
-                    print(f"   Helm Release: {args.helm_release}")
-                    if args.helm_values:
-                        print(f"   Values File: {args.helm_values}")
-                if args.kubeconfig:
-                    print(f"   Kubeconfig: {args.kubeconfig}")
-                if args.host:
-                    print(f"   Target Host: {args.host}")
-                print(f"   Timeout: {args.timeout}s")
-                print()
-
-            config = SetupRunnerConfig(github_project_url="dummy")
-            runner = SetupRunner(config)
-            runner.run_k8s_deploy(
-                deploy_method=args.method,
-                namespace=args.namespace,
-                manifest=args.manifest,
-                helm_chart=args.helm_chart,
-                helm_release=args.helm_release,
-                helm_values=args.helm_values,
-                kubeconfig=args.kubeconfig,
-                kubeconfig_b64=getattr(args, "kubeconfig_b64", None),
-                inventory_file=args.inventory,
-                host=args.host,
-                user=args.user,
-                timeout=args.timeout,
-                dry_run=args.dry_run,
-                force=args.force,
-                image_substitutions=getattr(args, "images", None),
-                k8s_secrets=getattr(args, "k8s_secrets", None),
-                registry_secrets=getattr(args, "registry_secrets", None),
-            )
-
-            if not args.dry_run:
-                print(f"\n✅ Kubernetes deployment to {args.namespace} completed!")
-
-        except Exception as e:
-            print(f"❌ Kubernetes deployment failed: {e}")
-            sys.exit(1)
-
-    elif args.command == "hydrate-env":
-        try:
-            import json
-            from vm_tool.runner import SetupRunner, SetupRunnerConfig
-
-            secrets_map = json.loads(args.secrets)
-            config = SetupRunnerConfig(github_project_url="dummy")
-            runner = SetupRunner(config)
-
-            print("💧 Hydrating environment files from secrets...")
-            runner.hydrate_env_from_secrets(
-                compose_file=args.compose_file,
-                secrets_map=secrets_map,
-                project_root=args.project_root,
-            )
-        except Exception as e:
-            print(f"❌ Failed to hydrate env: {e}")
-            sys.exit(1)
-
-    elif args.command == "completion":
-        from vm_tool.completion import print_completion, install_completion
-
-        if args.install:
-            try:
-                path = install_completion(args.shell)
-                print(f"✅ Completion installed: {path}")
-                print(f"\nTo activate, run:")
-                if args.shell == "bash":
-                    print(f"  source {path}")
-                elif args.shell == "zsh":
-                    print(
-                        f"  # Add to ~/.zshrc: fpath=({os.path.dirname(path)} $fpath)"
-                    )
-                    print(f"  # Then run: compinit")
-                elif args.shell == "fish":
-                    print(f"  # Restart your shell or run: source {path}")
-            except Exception as e:
-                print(f"❌ Failed to install completion: {e}")
-                sys.exit(1)
-        else:
-            print_completion(args.shell)
-
-    elif args.command == "prepare-release":
-        from vm_tool.release import ReleaseManager
-
-        manager = ReleaseManager(verbose=args.verbose)
-        try:
-            manager.prepare_release(
-                base_file=args.base_file,
-                prod_file=args.prod_file,
-                output_file=args.output,
-                strip_volumes=args.strip_volumes,
-                fix_paths=args.fix_paths,
-            )
-        except Exception as e:
-            print(f"❌ Release preparation failed: {e}")
-            sys.exit(1)
+        from vm_tool.handlers.setup import handle_monitoring_setup
+        handle_monitoring_setup(args)
 
     elif args.command == "setup-ci":
-        from vm_tool.runner import SetupRunner
+        from vm_tool.handlers.setup import handle_ci_setup
+        handle_ci_setup(args)
 
-        # No config needed for this utility
-        try:
-            # We can add a static method or simple function for this
-            SetupRunner.setup_ci_environment(provider=args.provider)
-            print("✅ CI Environment configured successfully")
-        except Exception as e:
-            print(f"❌ CI Setup failed: {e}")
-            sys.exit(1)
+    elif args.command == "deploy-docker":
+        from vm_tool.handlers.deploy import handle_docker_deploy
+        handle_docker_deploy(args)
+
+    elif args.command == "deploy-k8s":
+        from vm_tool.handlers.deploy import handle_k8s_deploy
+        handle_k8s_deploy(args)
+
+    elif args.command == "hydrate-env":
+        from vm_tool.handlers.tools import handle_hydrate_env
+        handle_hydrate_env(args)
+
+    elif args.command == "completion":
+        from vm_tool.handlers.tools import handle_completion
+        handle_completion(args)
+
+    elif args.command == "prepare-release":
+        from vm_tool.handlers.tools import handle_prepare_release
+        handle_prepare_release(args)
 
     elif args.command == "generate-pipeline":
-        try:
-            from vm_tool.generator import PipelineGenerator
+        from vm_tool.handlers.tools import handle_generate_pipeline
+        handle_generate_pipeline(args)
 
-            print("🚀 Configuring your CI/CD Pipeline...")
-
-            # Interactive prompts
-            branch = (
-                input("Enter the branch to trigger deployment [main]: ").strip()
-                or "main"
-            )
-            python_version = input("Enter Python version [3.12]: ").strip() or "3.12"
-
-            enable_linting = (
-                input("Include Linting step (flake8)? [y/N]: ").strip().lower()
-            )
-            run_linting = enable_linting in ("y", "yes")
-
-            enable_tests = (
-                input("Include Testing step (pytest)? [y/N]: ").strip().lower()
-            )
-            run_tests = enable_tests in ("y", "yes")
-
-            enable_monitoring = (
-                input("Include Monitoring (Prometheus/Grafana)? [y/N]: ")
-                .strip()
-                .lower()
-            )
-            setup_monitoring = enable_monitoring in ("y", "yes")
-
-            dep_type_input = (
-                input("Deployment Type (docker/registry/custom) [docker]: ")
-                .strip()
-                .lower()
-            )
-            deployment_type = "docker"
-            strategy = "docker"
-
-            if dep_type_input in ("custom", "c"):
-                deployment_type = "custom"
-                strategy = "custom"
-            elif dep_type_input in ("registry", "ghcr", "r"):
-                deployment_type = "docker"
-                strategy = "registry"
-            elif dep_type_input in ("kubernetes", "k8s", "k"):
-                deployment_type = "kubernetes"
-                strategy = "kubernetes"
-
-            docker_compose_file = "docker-compose.yml"
-            env_file = None
-            deploy_command = None
-
-            if deployment_type == "custom":
-                deploy_command = input("Enter custom deployment command: ").strip()
-
-            elif deployment_type == "docker":
-                docker_compose_file = (
-                    input(
-                        "Enter Docker Compose file name [docker-compose.yml]: "
-                    ).strip()
-                    or "docker-compose.yml"
-                )
-                env_file_input = input(
-                    "Enter Env file path (optional, press Enter to skip): "
-                ).strip()
-                if env_file_input:
-                    env_file = env_file_input
-
-            context = {
-                "branch_name": branch,
-                "python_version": python_version,
-                "run_linting": run_linting,
-                "run_tests": run_tests,
-                "setup_monitoring": setup_monitoring,
-                "deployment_type": deployment_type,
-                "docker_compose_file": docker_compose_file,
-                "env_file": env_file,
-                "deploy_command": deploy_command,
-            }
-
-            # Use new generator API
-            generator = PipelineGenerator(
-                platform=args.platform,
-                strategy=strategy,
-                enable_monitoring=setup_monitoring,
-            )
-            generator.set_options(
-                run_linting=run_linting,
-                run_tests=run_tests,
-                python_version=python_version,
-                branch=branch,
-            )
-            output = generator.generate()
-
-            # Save to file
-            output_path = generator.save()
-            print(f"✅ Deployment pipeline generated: {output_path}")
-        except Exception as e:
-            print(f"Error: {e}")
-            sys.exit(1)
     elif args.command == "secrets":
-        if args.secrets_command == "sync":
-            from vm_tool.secrets import SecretsManager
-            import os
+        from vm_tool.handlers.tools import handle_secrets
+        handle_secrets(args)
 
-            if not os.path.exists(args.env_file):
-                print(f"❌ Env file not found: {args.env_file}")
-                sys.exit(1)
+    elif args.command == "doctor":
+        from vm_tool.handlers.ops import handle_doctor
+        handle_doctor(args)
 
-            try:
-                manager = SecretsManager.from_github(repo=args.repo)
-
-                print(f"📖 Reading secrets from {args.env_file}...")
-                secrets_to_sync = {}
-                with open(args.env_file, "r") as f:
-                    for line in f:
-                        line = line.strip()
-                        if not line or line.startswith("#"):
-                            continue
-                        # Basic env parsing
-                        if "=" in line:
-                            key, value = line.split("=", 1)
-                            key = key.strip()
-                            value = value.strip().strip("'").strip('"')
-                            secrets_to_sync[key] = value
-
-                if not secrets_to_sync:
-                    print("⚠️  No secrets found to sync.")
-                    sys.exit(0)
-
-                print(f"🚀 Syncing {len(secrets_to_sync)} secrets to GitHub...")
-                # Confirm with user
-                confirm = (
-                    input(
-                        f"Proceed to upload {len(secrets_to_sync)} secrets? (yes/no): "
-                    )
-                    .strip()
-                    .lower()
-                )
-                if confirm != "yes":
-                    print("❌ Operation cancelled.")
-                    sys.exit(0)
-
-                success_count = 0
-                for key, value in secrets_to_sync.items():
-                    print(f"   Uploading {key}...")
-                    if manager.set(key, value):
-                        success_count += 1
-
-                print(
-                    f"\n✨ Successfully synced {success_count}/{len(secrets_to_sync)} secrets!"
-                )
-
-            except Exception as e:
-                print(f"❌ Error syncing secrets: {e}")
-                sys.exit(1)
+    elif args.command == "status":
+        from vm_tool.handlers.ops import handle_status
+        handle_status(args)
 
     else:
         parser.print_help()

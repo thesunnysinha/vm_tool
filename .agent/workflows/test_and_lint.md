@@ -2,17 +2,17 @@
 description: Run tests and linting for vm_tool
 ---
 
-This workflow runs the project's tests and linting checks using the configured Makefile and Python tools.
+This workflow runs the project's tests and linting checks using Poetry.
 
 1. Install dependencies (if needed) and run tests
 
    ```bash
-   pip install -e ".[dev]"
-   pytest
+   poetry install --with dev
+   poetry run pytest
    ```
 
 2. Run linting checks
    ```bash
-   flake8 vm_tool
-   black --check vm_tool
+   poetry run flake8 vm_tool
+   poetry run black --check vm_tool
    ```

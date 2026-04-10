@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch, mock_open
 
 import pytest
 
-from vm_tool.runner import SetupRunner, SetupRunnerConfig
+from vm_tool.core.runner import SetupRunner, SetupRunnerConfig
 
 
 @pytest.fixture
@@ -221,18 +221,15 @@ class TestK8sDeployIdempotency:
     @patch("ansible_runner.run")
     def test_skips_when_no_changes(self, mock_run, runner, temp_manifest, capsys, tmp_path):
         """Deployment is skipped when manifest hasn't changed."""
-        from vm_tool.state import DeploymentState
+        from vm_tool.core.state import DeploymentState
 
         mock_run.return_value = MagicMock(status="successful", rc=0)
         state_dir = tmp_path / ".vm_tool"
         history_dir = tmp_path / ".vm_tool_history"
         history_dir.mkdir(parents=True, exist_ok=True)
 
-        def make_state(*a, **kw):
-            return DeploymentState(state_dir)
-
-        with patch("vm_tool.state.DeploymentState", lambda *a, **kw: DeploymentState(state_dir)), \
-             patch("vm_tool.history.DeploymentHistory") as mock_history_cls:
+        with patch("vm_tool.core.state.DeploymentState", lambda *a, **kw: DeploymentState(state_dir)), \
+             patch("vm_tool.core.history.DeploymentHistory") as mock_history_cls:
             mock_history_cls.return_value = MagicMock()
 
             # First deploy
@@ -259,13 +256,13 @@ class TestK8sDeployIdempotency:
     @patch("ansible_runner.run")
     def test_force_redeploys(self, mock_run, runner, temp_manifest, tmp_path):
         """Force flag causes redeployment even without changes."""
-        from vm_tool.state import DeploymentState
+        from vm_tool.core.state import DeploymentState
 
         mock_run.return_value = MagicMock(status="successful", rc=0)
         state_dir = tmp_path / ".vm_tool"
 
-        with patch("vm_tool.state.DeploymentState", lambda *a, **kw: DeploymentState(state_dir)), \
-             patch("vm_tool.history.DeploymentHistory") as mock_history_cls:
+        with patch("vm_tool.core.state.DeploymentState", lambda *a, **kw: DeploymentState(state_dir)), \
+             patch("vm_tool.core.history.DeploymentHistory") as mock_history_cls:
             mock_history_cls.return_value = MagicMock()
 
             # First deploy

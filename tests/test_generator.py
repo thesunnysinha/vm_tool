@@ -3,7 +3,7 @@ from unittest.mock import mock_open, patch
 
 import pytest
 
-from vm_tool.generator import PipelineGenerator
+from vm_tool.tools.generator import PipelineGenerator
 
 
 def test_generate_github_pipeline(mock_fs):
@@ -79,6 +79,31 @@ def test_generate_github_pipeline_custom_strategy(mock_fs):
 
 
 def test_generate_unsupported_platform():
-    generator = PipelineGenerator(platform="gitlab")
-    with pytest.raises((NotImplementedError, ValueError)):
+    generator = PipelineGenerator(platform="unsupported_xyz")
+    with pytest.raises(ValueError):
         generator.generate()
+
+
+def test_generate_gitlab_ci():
+    generator = PipelineGenerator(platform="gitlab")
+    content = generator.generate()
+    assert "stages:" in content
+    assert "deploy:" in content
+    assert "vm_tool deploy-docker" in content
+    assert "StrictHostKeyChecking=accept-new" in content
+    assert "SSH_HOSTNAME" in content
+
+
+def test_generate_gitlab_ci_with_options():
+    generator = PipelineGenerator(
+        platform="gitlab",
+        enable_rollback=True,
+        enable_backup=True,
+        enable_health_checks=True,
+    )
+    generator.set_options(run_linting=True, run_tests=True)
+    content = generator.generate()
+    assert "lint:" in content
+    assert "test:" in content
+    assert "deploy:rollback" in content
+    assert "health" in content.lower()

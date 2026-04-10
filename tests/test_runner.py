@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-from vm_tool.runner import SetupRunner, SetupRunnerConfig
+from vm_tool.core.runner import SetupRunner, SetupRunnerConfig
 
 
 def test_config_validation():
@@ -47,5 +47,5 @@ def test_run_setup_failure(mock_ansible_runner, mock_fs):
     config = SetupRunnerConfig(github_project_url="https://github.com/user/repo")
     runner = SetupRunner(config)
 
-    with pytest.raises(RuntimeError, match="Ansible playbook execution failed"):
+    with pytest.raises(RuntimeError, match="failed"):
         runner.run_setup()

@@ -26,7 +26,7 @@ vm_tool deploy-docker --profile prod --force  # Force redeploy
 
 ### 3. Health Checks & Smoke Tests
 
-Verify deployments with port, HTTP, and custom checks.
+Verify deployments with port, HTTP, and custom checks. Health checks use Tenacity retry with configurable timeouts (`wait_for_port` and `wait_for_http`).
 
 ```bash
 vm_tool deploy-docker --profile prod --health-port 8000
@@ -44,7 +44,7 @@ vm_tool config create-profile prod --environment production
 
 ### 5. Verbose/Debug Logging
 
-Control output verbosity.
+Control output verbosity. All output is rendered with Rich (colored tables, spinners, styled messages).
 
 ```bash
 vm_tool --verbose deploy-docker --profile prod
@@ -93,10 +93,67 @@ vm_tool backup restore --id BACKUP_ID --host IP
 
 ---
 
+## Phase 3: Advanced Deployment ✅
+
+### 10. Deployment Strategies
+
+Blue-green, canary, and A/B testing strategies are implemented in `vm_tool.deploy.strategies`. Each strategy implements `_deploy_to_host`; subclasses must override `_switch_traffic` to wire in their own load-balancer or routing logic.
+
+### 11. Multi-Cloud VM Provisioning
+
+Provision, inspect, and terminate VMs on AWS, GCP, and Azure via `vm_tool.infra.cloud`. Requires the corresponding extra (`vm-tool[aws]`, `vm-tool[gcp]`, or `vm-tool[azure]`).
+
+### 12. Kubernetes Support
+
+Full Kubernetes support via `vm_tool.infra.kubernetes`: manifest apply, Helm chart deploy, pod status, scale, and rollback.
+
+```bash
+vm_tool deploy-k8s --method manifest --manifest k8s/app.yml --namespace prod
+vm_tool deploy-k8s --method helm --helm-chart ./chart --helm-release myapp
+```
+
+### 13. Compliance Scanning
+
+Static analysis for Docker Compose files and secrets via `vm_tool.security.compliance`. No network access required.
+
+---
+
+## Phase 4: Operations & Observability ✅
+
+### 14. Prerequisites Check
+
+Verify all runtime dependencies before deploying.
+
+```bash
+vm_tool doctor
+```
+
+### 15. Deployment Status Dashboard
+
+Show current deployment state for all tracked hosts.
+
+```bash
+vm_tool status
+```
+
+### 16. Secrets Sync
+
+Sync a local `.env` file (parsed via `python-dotenv`) to GitHub Secrets.
+
+```bash
+vm_tool secrets sync --env-file .env --repo owner/repo
+```
+
+### 17. CI/CD Pipeline Generation
+
+```bash
+vm_tool generate-pipeline --platform github
+```
+
+---
+
 ## Roadmap
 
-- Kubernetes deployment support (`deploy-k8s`)
-- Blue-green and canary strategies (CLI integration)
-- Multi-cloud VM provisioning (AWS/GCP/Azure)
-- Compliance scanning
-- GitOps Integration
+- GitOps Integration (ArgoCD/Flux)
+- Web dashboard
+- Notification webhooks (Slack/Discord)

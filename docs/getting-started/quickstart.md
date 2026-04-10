@@ -2,6 +2,14 @@
 
 Deploy a Docker application to a remote server in under 2 minutes.
 
+## 0. Verify Prerequisites
+
+```bash
+vm_tool doctor
+```
+
+This checks that Ansible, Docker, kubectl, Helm, SSH, and required Python packages are all available. Fix any reported issues before continuing.
+
 ## 1. Create a Profile
 
 ```bash

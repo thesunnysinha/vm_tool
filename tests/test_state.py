@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
-from vm_tool.state import DeploymentState
+from vm_tool.core.state import DeploymentState
 
 
 @pytest.fixture

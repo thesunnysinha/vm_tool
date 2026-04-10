@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
-from vm_tool.history import DeploymentHistory
+from vm_tool.core.history import DeploymentHistory
 
 
 @pytest.fixture

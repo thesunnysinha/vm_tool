@@ -4,34 +4,28 @@
     state: directory
     mode: '0755'
 
-- name: Copy project files to target
-  copy:
-    src: "{{ playbook_dir }}/../../" 
+- name: Copy project files to target using rsync
+  synchronize:
+    src: "{{ SOURCE_PATH }}/"
     dest: "{{ project_dest_dir }}/"
-    # Note: In ansible-runner, playbook_dir is inside private_data_dir/project/vm_setup.
-    # We need to be careful about the source path.
-    # However, ansible_runner isolates execution.
-    # Better approach: Pass SOURCE_PATH as extravar.
-  when: false # Placeholder, we will use synchronize or better strategy.
+    rsync_opts:
+      - "--exclude=.git"
+      - "--exclude=__pycache__"
+      - "--exclude=*.pyc"
+      - "--exclude=.env"
+    delete: false
+    recursive: yes
+  when: DEPLOY_MODE | default('push') == 'push'
+  ignore_errors: yes
+  register: rsync_result
 
-# Re-thinking: simple 'copy' of just the compose file is safer for now if we don't know build context.
-# But usually context is needed. 
-# Let's rely on 'synchronize' (rsync) if available, or just copy the compose file if user only provided that.
-
-# For MVP of 'deploy-docker', let's copy the DOCKER_COMPOSE_FILE_PATH and .env if exists.
-- name: Ensure Docker Compose file parent directory exists
-  file:
-    path: "{{ project_dest_dir }}/{{ DOCKER_COMPOSE_FILE_PATH | dirname }}"
-    state: directory
-    mode: '0755'
-  when: DOCKER_COMPOSE_FILE_PATH is defined and (DOCKER_COMPOSE_FILE_PATH | dirname) != ''
-
-- name: Copy Docker Compose file
+- name: Fallback - copy Docker Compose file if rsync unavailable
   copy:
     src: "{{ SOURCE_PATH }}/{{ DOCKER_COMPOSE_FILE_PATH }}"
     dest: "{{ project_dest_dir }}/{{ DOCKER_COMPOSE_FILE_PATH }}"
+  when: rsync_result is failed or rsync_result is skipped
 
-# Handle dynamic dependencies (new method)
+# Handle dynamic dependencies (env files, bind-mount volumes detected from compose)
 - name: Ensure parent directories for dependencies exist
   file:
     path: "{{ project_dest_dir }}/{{ item.dest | dirname }}"
@@ -40,13 +34,13 @@
   loop: "{{ FILES_TO_COPY | default([]) }}"
   when: FILES_TO_COPY is defined and (item.dest | dirname) != ''
 
-- name: Clean up conflicting directories
+- name: Clean up conflicting directories before copy
   shell: |
-     target="{{ project_dest_dir }}/{{ item.dest }}"
-     if [ -d "$target" ]; then
-       rm -rf "$target"
-       echo "removed_directory"
-     fi
+    target="{{ project_dest_dir }}/{{ item.dest }}"
+    if [ -d "$target" ]; then
+      rm -rf "$target"
+      echo "removed_directory"
+    fi
   loop: "{{ FILES_TO_COPY | default([]) }}"
   register: dir_cleanup
   changed_when: "'removed_directory' in dir_cleanup.stdout"
@@ -59,7 +53,7 @@
   loop: "{{ FILES_TO_COPY | default([]) }}"
   when: FILES_TO_COPY is defined
 
-# Backward compatibility for single env file
+# Backward compatibility for single env file passed via --env-file
 - name: Ensure Env file parent directory exists
   file:
     path: "{{ project_dest_dir }}/{{ ENV_FILE_PATH | default('.env') | dirname }}"

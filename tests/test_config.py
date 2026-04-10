@@ -7,13 +7,13 @@ from unittest.mock import patch
 
 import pytest
 
-from vm_tool.config import Config
+from vm_tool.config.config import Config
 
 
 @pytest.fixture
 def temp_config_dir(tmp_path):
     """Create a temporary config directory."""
-    with patch("vm_tool.config.Path.home", return_value=tmp_path):
+    with patch("vm_tool.config.config.Path.home", return_value=tmp_path):
         yield tmp_path / ".vm_tool"
 
 

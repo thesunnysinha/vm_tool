@@ -25,7 +25,7 @@ def test_full_deployment_workflow(test_host, test_port):
 
 def test_health_checks(test_host, test_port):
     """Test health check functionality."""
-    from vm_tool.health import HealthCheck
+    from vm_tool.deploy.health import HealthCheck
 
     # Test port check
     # checker = HealthCheck(test_host)
@@ -41,7 +41,7 @@ def test_health_checks(test_host, test_port):
 
 def test_deployment_validation(test_host, test_port):
     """Test deployment validation."""
-    from vm_tool.validation import DeploymentValidator
+    from vm_tool.tools.validation import DeploymentValidator
 
     validator = DeploymentValidator(test_host, test_port)
     # Would run actual validation
@@ -50,7 +50,7 @@ def test_deployment_validation(test_host, test_port):
 
 def test_metrics_collection():
     """Test metrics collection."""
-    from vm_tool.metrics import MetricsCollector
+    from vm_tool.observability.metrics import MetricsCollector
 
     collector = MetricsCollector(export_dir=".test_metrics")
     metrics = collector.start_deployment("test-001", "localhost")
@@ -69,7 +69,7 @@ def test_metrics_collection():
 
 def test_secrets_management():
     """Test secrets management."""
-    from vm_tool.secrets import EncryptedFileBackend, SecretsManager
+    from vm_tool.security.secrets import EncryptedFileBackend, SecretsManager
     from cryptography.fernet import Fernet
 
     # Generate test key

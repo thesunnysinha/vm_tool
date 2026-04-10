@@ -81,6 +81,8 @@ nav:
       - SSH Key Setup: ssh-key-setup.md
       - EC2 + GitHub Actions: ec2-github-actions-guide.md
       - Secrets Management: guide/secrets.md
+      - Deployment Strategies: strategies.md
+      - Doctor & Status: reference/cli.md
   - Reference:
       - CLI Commands: reference/cli.md
       - Architecture: reference/architecture.md

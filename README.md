@@ -11,8 +11,7 @@ A modern, user-friendly solution for automating and managing virtual machine (VM
 ## ✨ Features
 
 - Automated VM setup with Docker & Docker Compose
-- Cloud VM provisioning via SSH
-- **Infrastructure Provisioning**: Terraform integration for cloud providers (AWS, etc.)
+- Cloud VM provisioning via SSH (AWS, GCP, Azure)
 - **Kubernetes Ready**: One-click K3s cluster setup + manifest/Helm deployments
 - **CI/CD Pipelines**: Deploy to Kubernetes from GitHub Actions with zero kubectl boilerplate
 - **Observability**: Instant Prometheus & Grafana deployment
@@ -44,15 +43,7 @@ Bootstrap your project with a complete GitHub Actions workflow:
 vm_tool generate-pipeline
 ```
 
-#### 2. Provision Infrastructure
-
-Provision cloud resources using Terraform (requires Terraform installed):
-
-```bash
-vm_tool provision --provider aws --action apply --vars region=us-east-1
-```
-
-#### 3. Setup Kubernetes (K3s)
+#### 2. Setup Kubernetes (K3s)
 
 Deploy a lightweight Kubernetes cluster to your servers:
 
@@ -60,7 +51,7 @@ Deploy a lightweight Kubernetes cluster to your servers:
 vm_tool setup-k8s --inventory inventory.yml
 ```
 
-#### 4. Deploy to Kubernetes
+#### 3. Deploy to Kubernetes
 
 Deploy manifests or Helm charts to an existing Kubernetes cluster:
 
@@ -81,7 +72,7 @@ vm_tool deploy-k8s \
   --kubeconfig ~/.kube/config
 ```
 
-#### 5. Deploy to Kubernetes from CI/CD (no SSH needed)
+#### 4. Deploy to Kubernetes from CI/CD (no SSH needed)
 
 Pass a base64-encoded kubeconfig, inject images, and sync secrets — all from GitHub Actions:
 
@@ -109,7 +100,7 @@ vm_tool deploy-k8s \
 | `--dry-run` | Validate manifests against the cluster without applying |
 | `--force` | Skip hash-based change detection and always deploy |
 
-#### 6. Setup Observability
+#### 5. Setup Observability
 
 Deploy Prometheus and Grafana for instant monitoring:
 
@@ -288,6 +279,14 @@ vm_tool --version
 ## 📚 Learn More
 
 See the [Official Documentation](https://vm-tool.sunnysinha.online/) for complete guides. Visit the [PyPI page](https://pypi.org/project/vm-tool/) for details, or the [GitHub repository](https://github.com/thesunnysinha/vm_tool) for code and issues.
+
+---
+
+## 🗺️ Roadmap
+
+- **Terraform integration** — `vm_tool provision` command wrapping `terraform apply` with variable passthrough
+- **Per-host password support** — when multiple SSH configs have different passwords, support a per-host vault lookup instead of last-wins env var
+- **Traffic splitting** — built-in nginx/AWS ALB/HAProxy helpers for blue-green and canary `_switch_traffic` override
 
 ---
 

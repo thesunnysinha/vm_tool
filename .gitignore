@@ -31,5 +31,36 @@ Thumbs.db
 .idea/
 *.sublime-project
 *.sublime-workspace
+*.code-workspace
 
+# Test & coverage artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Ansible runtime data
+ansible_runner_data/
+vm_setup/ansible_runner_data/
+
+# Generated / temporary inventory and kubeconfig files
 dynamic_inventory.yml
+generated_inventory.yml
+vm_tool_inv_*.yml
+*.known_hosts
+*.kubeconfig
+
+# Local deployment state (written to ~/.vm_tool at runtime)
+.vm_tool/
+
+# Documentation build output
+site/
+docs/_build/
+
+# Secrets (never commit real credentials)
+.env
+.env.*
+!.env.example
+
+# mypy
+.mypy_cache/

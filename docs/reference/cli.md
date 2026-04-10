@@ -289,3 +289,29 @@ Generate shell completion scripts.
 |----------|-------------|
 | `shell` | `bash`, `zsh`, or `fish` |
 | `--install` | Install the completion script |
+
+---
+
+## `vm_tool doctor`
+
+Check that all required prerequisites are installed and accessible.
+
+Verifies: Ansible, Docker, kubectl, Helm, SSH, and required Python packages.
+
+```bash
+vm_tool doctor
+```
+
+Output is rendered as a Rich table showing the status of each prerequisite. Run this before your first deployment to catch missing dependencies early.
+
+---
+
+## `vm_tool status`
+
+Show the current deployment state for all known hosts.
+
+```bash
+vm_tool status
+```
+
+Displays a Rich table with each tracked host, its last deployment timestamp, deployed hash, and health status.

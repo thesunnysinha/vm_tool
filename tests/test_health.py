@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from vm_tool.health import HealthCheck, SmokeTestSuite
+from vm_tool.deploy.health import HealthCheck, SmokeTestSuite
 
 
 def test_check_port_open():
@@ -71,7 +71,7 @@ def test_wait_for_port_immediate():
     port = server.getsockname()[1]
 
     health = HealthCheck("127.0.0.1", timeout=5)
-    assert health.wait_for_port(port, max_attempts=3) is True
+    assert health.wait_for_port(port, max_wait=5) is True
 
     server.close()
 
@@ -79,7 +79,7 @@ def test_wait_for_port_immediate():
 def test_wait_for_port_timeout():
     """Test waiting for a port that never becomes available."""
     health = HealthCheck("127.0.0.1", timeout=2)
-    assert health.wait_for_port(1, max_attempts=2) is False
+    assert health.wait_for_port(1, max_wait=2) is False
 
 
 @patch("subprocess.run")

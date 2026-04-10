@@ -1,0 +1,701 @@
+"""Dynamic CI/CD pipeline generator with all vm_tool features."""
+
+import os
+from pathlib import Path
+from typing import Optional
+
+
+class PipelineGenerator:
+    """Generate CI/CD pipelines with vm_tool features."""
+
+    def __init__(
+        self,
+        platform: str = "github",
+        strategy: str = "docker",  # docker, registry
+        enable_monitoring: bool = False,
+        enable_health_checks: bool = True,
+        enable_backup: bool = True,
+        enable_rollback: bool = True,
+        enable_drift_detection: bool = False,
+        enable_dry_run: bool = True,
+        health_port: Optional[int] = 8000,
+        health_url: Optional[str] = None,
+        backup_paths: Optional[list] = None,
+        app_port: int = 8000,
+        hydrate_env: bool = True,
+        combine_compose: bool = True,
+    ):
+        self.platform = platform
+        self.strategy = strategy
+        self.enable_monitoring = enable_monitoring
+        self.enable_health_checks = enable_health_checks
+        self.enable_backup = enable_backup
+        self.enable_rollback = enable_rollback
+        self.enable_drift_detection = enable_drift_detection
+        self.enable_dry_run = enable_dry_run
+        self.health_port = health_port
+        self.health_url = (
+            health_url or f"http://${{{{ secrets.EC2_HOST }}}}:{app_port}/health"
+        )
+        self.backup_paths = backup_paths or ["/app", "/etc/nginx"]
+        self.app_port = app_port
+        self.hydrate_env = hydrate_env
+        self.combine_compose = combine_compose
+
+        # New options
+        self.run_linting = False
+        self.run_tests = False
+        self.python_version = "3.11"
+        self.branch = "main"
+
+    def set_options(
+        self,
+        run_linting: bool = False,
+        run_tests: bool = False,
+        python_version: str = "3.11",
+        branch: str = "main",
+    ):
+        """Set additional options for the pipeline."""
+        self.run_linting = run_linting
+        self.run_tests = run_tests
+        self.python_version = python_version
+        self.branch = branch
+
+    def generate(self) -> str:
+        """Generate pipeline based on platform."""
+        if self.platform == "github":
+            return self._generate_github_actions()
+        elif self.platform == "gitlab":
+            return self._generate_gitlab_ci()
+        else:
+            raise ValueError(f"Unsupported platform: {self.platform}")
+
+    def _generate_github_actions(self) -> str:
+        """Generate GitHub Actions workflow with all features."""
+
+        # Build steps dynamically
+        # Build steps dynamically
+        steps = []
+
+        # Basic setup steps
+        steps.extend(
+            [
+                self._step_checkout(),
+                self._step_validate_secrets(),
+                self._step_setup_python(),
+                self._step_install_vm_tool(),
+            ]
+        )
+
+        if self.run_linting:
+            steps.append(self._step_run_linting())
+
+        if self.run_tests:
+            steps.append(self._step_run_tests())
+
+        # Build and Push (Registry Strategy)
+        if self.strategy == "registry":
+            steps.append(self._step_login_ghcr())
+            steps.append(self._step_build_push())
+
+        steps.extend(
+            [
+                self._step_setup_ssh(),
+                self._step_validate_ssh(),
+            ]
+        )
+
+        # Copy files (only if NOT registry strategy, or just config for registry)
+        if self.strategy == "registry":
+            # For registry, we only need docker-compose and .env, not the full source
+            steps.append(self._step_copy_compose_only())
+        else:
+            steps.append(self._step_copy_files())
+
+        # Backup step
+        if self.enable_backup:
+            steps.append(self._step_create_backup())
+
+        # Drift detection (pre-deployment)
+        if self.enable_drift_detection:
+            steps.append(self._step_drift_check())
+
+        # Dry-run step
+        if self.enable_dry_run:
+            steps.append(self._step_dry_run())
+
+        if self.hydrate_env:
+            steps.append(self._step_hydrate_env())
+            
+        if self.combine_compose:
+            steps.append(self._step_combine_compose())
+            
+        # Main deployment
+        steps.append(self._step_deploy())
+
+        # Health checks
+        if self.enable_health_checks:
+            steps.append(self._step_health_check())
+
+        # Verification
+        steps.append(self._step_verify())
+
+        # Rollback on failure
+        if self.enable_rollback:
+            steps.append(self._step_rollback())
+
+        # Cleanup
+        steps.append(self._step_cleanup())
+
+        # Notification
+        steps.append(self._step_notification())
+
+        # Combine all steps
+        steps_yaml = "\n".join(steps)
+
+        return f"""name: Deploy with vm_tool
+
+on:
+  push:
+    branches: [ {self.branch} ]
+  pull_request:
+    branches: [ {self.branch} ]
+  workflow_dispatch:
+
+env:
+  SSH_HOSTNAME: ${{{{ secrets.SSH_HOSTNAME }}}}
+  SSH_USERNAME: ${{{{ secrets.SSH_USERNAME }}}}
+  APP_PORT: {self.app_port}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+{steps_yaml}
+"""
+
+    def _step_checkout(self) -> str:
+        return """      - name: Checkout code
+        uses: actions/checkout@v4"""
+
+    def _step_validate_secrets(self) -> str:
+        return """
+      - name: Validate Required Secrets
+        run: |
+          echo "🔐 Validating GitHub Secrets..."
+          MISSING_SECRETS=()
+          
+          if [ -z "${{ secrets.SSH_HOSTNAME }}" ]; then
+            MISSING_SECRETS+=("SSH_HOSTNAME")
+          fi
+          
+          if [ -z "${{ secrets.SSH_USERNAME }}" ]; then
+            MISSING_SECRETS+=("SSH_USERNAME")
+          fi
+          
+          if [ -z "${{ secrets.SSH_ID_RSA }}" ]; then
+            MISSING_SECRETS+=("SSH_ID_RSA")
+          fi
+          
+          if [ ${#MISSING_SECRETS[@]} -ne 0 ]; then
+            echo ""
+            echo "❌ ERROR: Missing required GitHub Secrets!"
+            echo ""
+            echo "Missing: ${MISSING_SECRETS[*]}"
+            echo ""
+            echo "📝 How to add secrets:"
+            echo "1. Go to: Repository → Settings → Secrets → Actions"
+            echo "2. Add each secret:"
+            echo ""
+            
+            if [[ " ${MISSING_SECRETS[*]} " =~ " SSH_HOSTNAME " ]]; then
+              echo "   SSH_HOSTNAME: Your Server IP (e.g., 54.123.45.67)"
+            fi
+            
+            if [[ " ${MISSING_SECRETS[*]} " =~ " SSH_USERNAME " ]]; then
+              echo "   SSH_USERNAME: SSH username (e.g., ubuntu)"
+            fi
+            
+            if [[ " ${MISSING_SECRETS[*]} " =~ " SSH_ID_RSA " ]]; then
+              echo "   SSH_ID_RSA: Run 'cat ~/.ssh/id_rsa' and copy output"
+            fi
+            
+            echo ""
+            echo "📚 See: docs/ssh-key-setup.md"
+            exit 1
+          fi
+          
+          echo "✅ All secrets configured"
+"""
+
+    def _step_setup_python(self) -> str:
+        return f"""
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '{self.python_version}'"""
+
+    def _step_install_vm_tool(self) -> str:
+        return """
+      - name: Install vm_tool
+        run: pip install vm-tool"""
+
+    def _step_run_linting(self) -> str:
+        return """
+      - name: Lint with flake8
+        run: |
+          pip install flake8
+          # stop the build if there are Python syntax errors or undefined names
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          # exit-zero treats all errors as warnings.
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics"""
+
+    def _step_run_tests(self) -> str:
+        return """
+      - name: Test with pytest
+        run: |
+          pip install pytest
+          pytest"""
+
+    def _step_login_ghcr(self) -> str:
+        return """
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}"""
+
+    def _step_build_push(self) -> str:
+        return """
+      - name: Build and push Docker images
+        env:
+          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+        run: |
+          # Create .env file for build context if needed
+          if [ -f .env.production ]; then
+            cp .env.production .env
+          fi
+          
+          # Build and push using docker-compose
+          docker-compose build
+          docker-compose push"""
+
+    def _step_copy_compose_only(self) -> str:
+        return """
+      - name: Copy docker-compose to EC2
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \\
+            'mkdir -p ~/app'
+          
+          scp -i ~/.ssh/deploy_key docker-compose.yml \\
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/app/
+          
+          # Copy .env file
+          if [ -f .env.production ]; then
+            scp -i ~/.ssh/deploy_key .env.production \\
+              ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/app/.env
+          fi"""
+
+    def _step_setup_ssh(self) -> str:
+        return """
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_ID_RSA }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.SSH_HOSTNAME }} >> ~/.ssh/known_hosts
+          
+          # Create SSH config to use the key for the specific host
+          cat > ~/.ssh/config <<EOF
+          Host ${{ secrets.SSH_HOSTNAME }}
+            User ${{ secrets.SSH_USERNAME }}
+            IdentityFile ~/.ssh/deploy_key
+            StrictHostKeyChecking accept-new
+          EOF"""
+
+    def _step_hydrate_env(self) -> str:
+        return """
+      - name: Hydrate Environment Files from Secrets
+        env:
+          SECRETS_CONTEXT: ${{ toJSON(secrets) }}
+        run: |
+          # Use vm_tool to create local env files from secrets based on compose file
+          vm_tool hydrate-env \\
+            --compose-file docker-compose.yml \\
+            --secrets "$SECRETS_CONTEXT"
+          echo "✅ Hydrated environment files from secrets"
+"""
+
+    def _step_combine_compose(self) -> str:
+        return """
+      - name: Combine Docker Compose files
+        run: |
+          # Combine base and prod compose files if prod exists
+          if [ -f docker/docker-compose.prod.yml ]; then
+            echo "Merging docker-compose.yml and docker/docker-compose.prod.yml..."
+            docker compose -f docker-compose.yml -f docker/docker-compose.prod.yml config > docker-compose.released.yml
+          elif [ -f docker-compose.prod.yml ]; then
+             echo "Merging docker-compose.yml and docker-compose.prod.yml..."
+             docker compose -f docker-compose.yml -f docker-compose.prod.yml config > docker-compose.released.yml
+          else
+            echo "No prod overriding file found, using base file..."
+            docker compose -f docker-compose.yml config > docker-compose.released.yml
+          fi
+          
+          # Replace absolute paths (from CI runner) with relative paths
+          # This assumes the structure: /home/runner/work/repo/repo/ -> ./
+          sed -i 's|/home/runner/work/[^/]*/[^/]*|.|g' docker-compose.released.yml
+          
+          echo "✅ Generated combined Docker Compose file"
+          cat docker-compose.released.yml
+"""
+
+    def _step_validate_ssh(self) -> str:
+        return """
+      - name: Validate SSH Connection
+        run: |
+          echo "✅ Testing SSH connection..."
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new \\
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "echo 'Connected'" || {
+            echo "❌ SSH failed! Check docs/ssh-key-setup.md"
+            exit 1
+          }"""
+
+    def _step_copy_files(self) -> str:
+        return """
+      - name: Copy docker-compose to EC2
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \\
+            'mkdir -p ~/app'
+          
+          scp -i ~/.ssh/deploy_key docker-compose.yml \\
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/app/
+          
+          # Copy any .env files if they exist
+          if [ -f .env.production ]; then
+            scp -i ~/.ssh/deploy_key .env.production \\
+              ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/app/.env
+          fi"""
+
+    def _step_create_backup(self) -> str:
+        return """
+      - name: Create backup
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            mkdir -p ~/backups
+            if [ -d ~/app ]; then
+              tar -czf ~/backups/backup-$(date +%Y%m%d-%H%M%S).tar.gz -C ~/app . 2>/dev/null || true
+              echo "✅ Backup created"
+            fi
+          EOF"""
+
+    def _step_drift_check(self) -> str:
+        return """
+      - name: Check drift
+        continue-on-error: true
+        run: |
+          echo "🔍 Checking for configuration drift..."
+          # Add drift detection logic"""
+
+    def _step_dry_run(self) -> str:
+        return """
+      - name: Dry-run
+        run: |
+          echo "🔍 DRY-RUN: Previewing deployment"
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            cd ~/app && docker-compose config
+          EOF"""
+
+    def _step_deploy(self) -> str:
+        return """
+      - name: Deploy with vm_tool (Ansible-based)
+        env:
+          # Define deployment command for the released file
+          DEPLOY_COMMAND: "docker compose -f docker-compose.released.yml up -d --remove-orphans"
+        run: |
+          # Create inventory file for Ansible
+          cat > inventory.yml << EOF
+          all:
+            hosts:
+              production:
+                ansible_host: ${{ secrets.SSH_HOSTNAME }}
+                ansible_user: ${{ secrets.SSH_USERNAME }}
+                ansible_ssh_private_key_file: ~/.ssh/deploy_key
+          EOF
+          
+          # Deploy using vm_tool (uses Ansible under the hood)
+          export GITHUB_REPOSITORY_OWNER=${{ github.repository_owner }}
+          
+          # Determine Project Directory based on user (handle root case)
+          if [ "${{ secrets.SSH_USERNAME }}" = "root" ]; then
+            HOME_DIR="/root"
+          else
+            HOME_DIR="/home/${{ secrets.SSH_USERNAME }}"
+          fi
+          PROJECT_DIR="${HOME_DIR}/apps/${{ github.event.repository.name }}"
+          
+          # Prepare arguments
+          ARGS=(
+            "--inventory" "inventory.yml"
+            "--compose-file" "docker-compose.released.yml"
+            "--project-dir" "$PROJECT_DIR"
+            "--deploy-command" "${{ env.DEPLOY_COMMAND }}"
+            "--force"
+            "--health-url" "http://${{ secrets.SSH_HOSTNAME }}:${{ env.APP_PORT }}/health"
+            "--host" "${{ secrets.SSH_HOSTNAME }}"
+            "--user" "${{ secrets.SSH_USERNAME }}"
+          )
+
+          # Add .env if it exists
+          if [ -f .env ]; then
+            ARGS+=("--env-file" ".env")
+          fi
+          
+          vm_tool deploy-docker "${ARGS[@]}"
+"""
+
+    def _step_health_check(self) -> str:
+        return f"""
+      - name: Health check
+        run: |
+          for i in {{{{1..30}}}}; do
+            if curl -f {self.health_url} 2>/dev/null; then
+              echo "✅ Health check passed"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "❌ Health check failed"
+          exit 1"""
+
+    def _step_verify(self) -> str:
+        return """
+      - name: Verify
+        run: |
+          # Use absolute path for verify step too
+          PROJECT_DIR="/home/${{ secrets.SSH_USERNAME }}/apps/${{ github.event.repository.name }}"
+          
+          ssh -i ~/.ssh/deploy_key ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOSTNAME }} << EOF
+            cd $PROJECT_DIR
+            docker compose ps
+            docker compose logs --tail=20
+          EOF"""
+
+    def _step_rollback(self) -> str:
+        return """
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          echo "⚠️  Rolling back..."
+          # Note: Rollback logic might need adjustment for absolute paths, keeping simple for now
+          ssh -i ~/.ssh/deploy_key ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOSTNAME }} << 'EOF'
+            BACKUP=$(ls -t ~/backups/*.tar.gz 2>/dev/null | head -1)
+            if [ -n "$BACKUP" ]; then
+              # TODO: Improve rollback to handle dynamic dirs
+              echo "Rollback not fully implemented for dynamic paths yet"
+            fi
+          EOF"""
+
+    def _step_cleanup(self) -> str:
+        return """
+      - name: Cleanup
+        if: success()
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOSTNAME }} << 'EOF'
+            cd ~/backups 2>/dev/null || exit 0
+            ls -t *.tar.gz 2>/dev/null | tail -n +6 | xargs rm -f || true
+          EOF"""
+
+    def _step_notification(self) -> str:
+        return """
+      - name: Notify
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ Deployed to ${{ secrets.SSH_HOSTNAME }}:${{ env.APP_PORT }}"
+          else
+            echo "❌ Deployment failed"
+          fi"""
+
+    def _generate_gitlab_ci(self) -> str:
+        """Generate GitLab CI pipeline with vm_tool features."""
+        linting_job = ""
+        if self.run_linting:
+            linting_job = f"""
+lint:
+  stage: test
+  image: python:{self.python_version}
+  script:
+    - pip install flake8
+    - flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+"""
+
+        test_job = ""
+        if self.run_tests:
+            test_job = f"""
+test:
+  stage: test
+  image: python:{self.python_version}
+  script:
+    - pip install pytest
+    - pytest
+"""
+
+        registry_jobs = ""
+        if self.strategy == "registry":
+            registry_jobs = """
+build:
+  stage: build
+  image: docker:24
+  services:
+    - docker:24-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+  script:
+    - docker-compose build
+    - docker-compose push
+"""
+
+        backup_step = ""
+        if self.enable_backup:
+            backup_step = """
+    - |
+      ssh -i ~/.ssh/deploy_key $SSH_USERNAME@$SSH_HOSTNAME << 'EOF'
+        mkdir -p ~/backups
+        [ -d ~/app ] && tar -czf ~/backups/backup-$(date +%Y%m%d-%H%M%S).tar.gz -C ~/app . || true
+      EOF
+"""
+
+        health_check_step = ""
+        if self.enable_health_checks:
+            health_check_step = f"""
+    - |
+      for i in $(seq 1 30); do
+        curl -f {self.health_url} 2>/dev/null && echo "✅ Health check passed" && exit 0
+        sleep 2
+      done
+      echo "❌ Health check failed" && exit 1
+"""
+
+        rollback_step = ""
+        if self.enable_rollback:
+            rollback_step = """
+deploy:rollback:
+  stage: deploy
+  when: on_failure
+  environment:
+    name: production
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq openssh-client
+    - mkdir -p ~/.ssh && chmod 700 ~/.ssh
+    - echo "$SSH_ID_RSA" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+    - ssh-keyscan -H "$SSH_HOSTNAME" >> ~/.ssh/known_hosts
+  script:
+    - |
+      ssh -i ~/.ssh/deploy_key $SSH_USERNAME@$SSH_HOSTNAME << 'EOF'
+        BACKUP=$(ls -t ~/backups/*.tar.gz 2>/dev/null | head -1)
+        if [ -n "$BACKUP" ]; then
+          tar -xzf "$BACKUP" -C ~/app/
+          cd ~/app && docker compose up -d --remove-orphans
+          echo "✅ Rollback complete"
+        else
+          echo "❌ No backup available for rollback"
+          exit 1
+        fi
+      EOF
+  needs: [deploy]
+"""
+
+        hydrate_step = ""
+        if self.hydrate_env:
+            hydrate_step = """
+    - pip install vm-tool
+    - vm_tool hydrate-env --compose-file docker-compose.yml --secrets "$SECRETS_CONTEXT"
+"""
+
+        stages = ["test", "build", "deploy"] if self.strategy == "registry" else ["test", "deploy"]
+        stages_yaml = "\n".join(f"  - {s}" for s in stages)
+
+        return f"""# GitLab CI/CD pipeline generated by vm_tool
+# Required CI/CD Variables (Settings → CI/CD → Variables):
+#   SSH_HOSTNAME   — target server IP or hostname
+#   SSH_USERNAME   — SSH user (e.g. ubuntu)
+#   SSH_ID_RSA     — private SSH key (mark as File type)
+
+stages:
+{stages_yaml}
+
+variables:
+  APP_PORT: "{self.app_port}"
+  PYTHON_VERSION: "{self.python_version}"
+
+{linting_job}{test_job}{registry_jobs}
+deploy:
+  stage: deploy
+  image: python:{self.python_version}
+  only:
+    - {self.branch}
+  environment:
+    name: production
+    url: http://$SSH_HOSTNAME:$APP_PORT
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq openssh-client rsync
+    - mkdir -p ~/.ssh && chmod 700 ~/.ssh
+    - echo "$SSH_ID_RSA" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+    - ssh-keyscan -H "$SSH_HOSTNAME" >> ~/.ssh/known_hosts
+    - pip install vm-tool
+  script:
+    - echo "🚀 Starting deployment to $SSH_HOSTNAME"
+{backup_step}
+    - |
+      cat > inventory.yml << EOF
+      all:
+        hosts:
+          production:
+            ansible_host: $SSH_HOSTNAME
+            ansible_user: $SSH_USERNAME
+            ansible_ssh_private_key_file: ~/.ssh/deploy_key
+            ansible_ssh_common_args: '-o StrictHostKeyChecking=accept-new'
+      EOF
+{hydrate_step}
+    - |
+      if [ -f docker/docker-compose.prod.yml ]; then
+        docker compose -f docker-compose.yml -f docker/docker-compose.prod.yml config > docker-compose.released.yml
+      else
+        docker compose -f docker-compose.yml config > docker-compose.released.yml
+      fi
+      sed -i 's|/builds/[^/]*/[^/]*/[^/]*|.|g' docker-compose.released.yml
+    - |
+      vm_tool deploy-docker \\
+        --inventory inventory.yml \\
+        --compose-file docker-compose.released.yml \\
+        --force
+{health_check_step}
+    - echo "✅ Deployment complete"
+  after_script:
+    - rm -f inventory.yml docker-compose.released.yml
+{rollback_step}
+"""
+
+    def save(self, output_path: Optional[str] = None) -> str:
+        """Save generated pipeline to file."""
+        content = self.generate()
+
+        if output_path is None:
+            if self.platform == "github":
+                output_path = ".github/workflows/deploy.yml"
+            elif self.platform == "gitlab":
+                output_path = ".gitlab-ci.yml"
+
+        # Create directory if it doesn't exist
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+        # Write file
+        with open(output_path, "w") as f:
+            f.write(content)
+
+        return output_path
