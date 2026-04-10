@@ -33,7 +33,7 @@ jobs:
           virtualenvs-in-project: true
 
       - name: Build package
-        run: poetry build --no-directory
+        run: poetry build
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
