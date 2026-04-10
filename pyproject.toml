@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "vm_tool"
-version = "1.1.1"
+version = "1.1.2"
 description = "A Comprehensive Tool for Setting Up Virtual Machines."
 readme = "README.md"
 authors = [
@@ -95,7 +95,7 @@ profile = "black"
 multi_line_output = 3
 
 [tool.bumpversion]
-current_version = "1.1.1"
+current_version = "1.1.2"
 commit = true
 tag = true
 

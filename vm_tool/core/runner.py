@@ -153,7 +153,7 @@ class SetupRunner:
         self.env_path = config.env_path
         self.env_data = config.env_data
         self._runner = AnsibleRunner(
-            playbook_dir=os.path.join(os.path.dirname(os.path.abspath(__file__)), "vm_setup")
+            playbook_dir=os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "vm_setup")
         )
 
     def _require_github_url(self) -> str:
@@ -281,7 +281,7 @@ class SetupRunner:
         current_dir = os.path.dirname(os.path.abspath(__file__))
 
         if not os.path.isabs(inventory_file):
-            inventory_file = os.path.join(current_dir, "vm_setup", inventory_file)
+            inventory_file = os.path.join(current_dir, "..", "vm_setup", inventory_file)
 
         self._runner.run(
             playbook=playbook,
