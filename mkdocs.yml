@@ -1,5 +1,5 @@
 site_name: VM Tool
-site_url: https://vm-tool.sunnysinha.online/
+site_url: https://vmtool.sunnysinha.online/
 site_description: A comprehensive deployment automation platform for Docker and Kubernetes applications
 repo_url: https://github.com/thesunnysinha/vm_tool
 repo_name: thesunnysinha/vm_tool
