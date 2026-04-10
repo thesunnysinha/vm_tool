@@ -148,6 +148,18 @@
       changed_when: false
       when: deploy_method == 'manifest' and not dry_run
 
+    - name: Restart deployments to pick up secret changes
+      command: >
+        kubectl --kubeconfig {{ kubeconfig_path }}
+        rollout restart deployment/{{ item }}
+        --namespace {{ k8s_namespace }}
+      loop: "{{ deployment_names.stdout.split() | default([]) }}"
+      when: >
+        deploy_method == 'manifest' and not dry_run
+        and k8s_generic_secrets | length > 0
+        and deployment_names.stdout | default('') | length > 0
+      changed_when: true
+
     - name: Wait for each deployment rollout
       command: >
         kubectl --kubeconfig {{ kubeconfig_path }}
